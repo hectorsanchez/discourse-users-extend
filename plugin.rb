@@ -180,6 +180,63 @@ after_initialize do
       render html: "<div id='discourse-users-page'></div>".html_safe, layout: 'application'
     end
 
+    def debug
+      # Endpoint temporal para debug - ver qué datos devuelve la API
+      response.headers['Content-Type'] = 'application/json'
+      
+      api_key = SiteSetting.dmu_discourse_api_key
+      api_username = SiteSetting.dmu_discourse_api_username
+      discourse_url = SiteSetting.dmu_discourse_api_url
+      
+      if api_key.blank? || discourse_url.blank?
+        render json: { error: "API Key y URL de Discourse no configurados correctamente." }, status: 400
+        return
+      end
+
+      begin
+        require 'net/http'
+        require 'uri'
+        require 'json'
+        
+        # Probar endpoint de grupos de confianza
+        uri = URI("#{discourse_url}/groups/trust_level_0/members.json")
+        uri.query = URI.encode_www_form({
+          'limit' => 3,
+          'offset' => 0
+        })
+        
+        request_uri = URI(uri.to_s)
+        http = Net::HTTP.new(request_uri.host, request_uri.port)
+        http.use_ssl = true if request_uri.scheme == 'https'
+        http.read_timeout = 30
+        
+        request = Net::HTTP::Get.new(request_uri)
+        request['Api-Key'] = api_key
+        request['Api-Username'] = api_username
+        
+        response_http = http.request(request)
+        
+        debug_data = {
+          status_code: response_http.code.to_i,
+          headers: response_http.to_hash,
+          body: response_http.body
+        }
+        
+        if response_http.code.to_i == 200
+          data = JSON.parse(response_http.body)
+          debug_data[:parsed_data] = data
+          if data['members'] && data['members'].any?
+            debug_data[:sample_user] = data['members'].first
+            debug_data[:sample_user_keys] = data['members'].first.keys
+          end
+        end
+        
+        render json: debug_data
+      rescue => e
+        render json: { error: "Error en debug: #{e.message}" }, status: 500
+      end
+    end
+
     def save_settings
       return render json: { error: "Unauthorized" }, status: 401 unless current_user&.admin?
       
@@ -195,6 +252,7 @@ after_initialize do
   Discourse::Application.routes.append do
     get '/discourse/users' => 'discourse_users#users'
     get '/discourse-users-page' => 'discourse_users#page'
+    get '/discourse/debug' => 'discourse_users#debug'
     post '/discourse/save_settings' => 'discourse_users#save_settings'
   end
 end
