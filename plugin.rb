@@ -172,12 +172,13 @@ after_initialize do
     end
   end
 
-  # Registrar las rutas directamente
-  Discourse::Application.routes.append do
-    get '/discourse-users' => 'discourse_users#index'
-    get '/discourse/users' => 'discourse_users#users'
-    get '/discourse/debug' => 'discourse_users#debug'
-    get '/discourse/test' => 'discourse_users#test'
-    post '/discourse/save_settings' => 'discourse_users#save_settings'
-  end
+end
+
+# Registrar las rutas directamente (fuera del bloque after_initialize)
+Discourse::Application.routes.append do
+  get '/discourse-users' => 'discourse_users#index'
+  get '/discourse/users' => 'discourse_users#users'
+  get '/discourse/debug' => 'discourse_users#debug'
+  get '/discourse/test' => 'discourse_users#test'
+  post '/discourse/save_settings' => 'discourse_users#save_settings'
 end
