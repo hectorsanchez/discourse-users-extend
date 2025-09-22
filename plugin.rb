@@ -6,8 +6,8 @@
 after_initialize do
   # Controlador simple sin Engine
   class ::DiscourseUsersController < ::ApplicationController
-    skip_before_action :check_xhr, only: [:index, :users, :debug]
-    skip_before_action :redirect_to_login_if_required, only: [:index, :users, :debug]
+    skip_before_action :check_xhr, only: [:index, :users, :debug, :test]
+    skip_before_action :redirect_to_login_if_required, only: [:index, :users, :debug, :test]
     
     def index
       # Página principal - renderizar la vista
