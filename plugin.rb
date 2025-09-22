@@ -6,10 +6,13 @@
 after_initialize do
   # Controlador simple sin Engine
   class ::DiscourseUsersController < ::ApplicationController
-    skip_before_action :verify_authenticity_token
-    skip_before_action :check_xhr, only: [:users, :page, :debug]
-    skip_before_action :preload_json, only: [:users, :page, :debug]
-    skip_before_action :redirect_to_login_if_required, only: [:users, :page, :debug]
+    skip_before_action :check_xhr, only: [:index, :users, :debug]
+    skip_before_action :redirect_to_login_if_required, only: [:index, :users, :debug]
+    
+    def index
+      # Página principal - renderizar la vista
+      render 'discourse_users/index', layout: 'application'
+    end
     
     def users
       # Establecer headers para respuesta JSON
@@ -34,17 +37,24 @@ after_initialize do
       begin
         # Obtener lista de usuarios del directorio
         directory_url = "#{discourse_url}/directory_items.json?order=created&period=all&limit=#{limit}"
+        Rails.logger.info "Making request to: #{directory_url}"
         directory_response = make_api_request(directory_url, api_key, api_username)
+        Rails.logger.info "Directory response status: #{directory_response[:status_code]}"
+        Rails.logger.info "Directory response body: #{directory_response[:body]}"
         
         if directory_response[:status_code] == 200
           directory_data = JSON.parse(directory_response[:body])
           users = directory_data['directory_items'].map { |item| item['user'] }
+          Rails.logger.info "Found #{users.length} users in directory"
           
           # Procesar usuarios como en el método real
-          processed_users = users.map do |user|
+          Rails.logger.info "Starting to process #{users.length} users"
+          processed_users = users.map.with_index do |user, index|
+            Rails.logger.info "Processing user #{index + 1}/#{users.length}: #{user['username']}"
             # Obtener perfil completo del usuario
             user_url = "#{discourse_url}/users/#{user['username']}.json"
             user_response = make_api_request(user_url, api_key, api_username)
+            Rails.logger.info "User #{user['username']} response status: #{user_response[:status_code]}"
             
             if user_response[:status_code] == 200
               user_data = JSON.parse(user_response[:body])['user']
@@ -85,7 +95,9 @@ after_initialize do
           end
           
           # Agrupar por país
+          Rails.logger.info "Finished processing users, grouping by country"
           grouped = processed_users.group_by { |u| u[:country] }
+          Rails.logger.info "Countries found: #{grouped.keys.join(', ')}"
           result = grouped.transform_values do |arr|
             arr.map { |u| {
               firstname: u[:firstname], 
@@ -99,9 +111,16 @@ after_initialize do
             } }
           end
 
+          Rails.logger.info "Sending response with #{result.keys.length} countries"
           render json: result
         else
-          render json: { error: "Failed to get directory", response: directory_response }, status: 500
+          Rails.logger.error "Directory request failed with status: #{directory_response[:status_code]}"
+          Rails.logger.error "Directory response body: #{directory_response[:body]}"
+          render json: { 
+            error: "Failed to get directory", 
+            status_code: directory_response[:status_code],
+            response_body: directory_response[:body]
+          }, status: 500
         end
       rescue => e
         Rails.logger.error "Error en Discourse API: #{e.message}"
@@ -109,10 +128,6 @@ after_initialize do
       end
     end
 
-    def page
-      # Renderizar la página HTML directamente
-      render html: "<div id='discourse-users-page'></div>".html_safe
-    end
 
     def debug
       # Endpoint temporal para debug - ver qué datos devuelve la API
@@ -128,8 +143,8 @@ after_initialize do
       
       if api_key.blank? || discourse_url.blank?
         render json: { error: "API Key y URL de Discourse no configurados correctamente." }, status: 400
-        return
-      end
+          return
+        end
 
       # Simular el procesamiento completo como en el método users
       begin
@@ -184,8 +199,8 @@ after_initialize do
           
           # Agrupar por país
           grouped = processed_users.group_by { |u| u[:country] }
-          
-          render json: {
+
+        render json: { 
             total_users: processed_users.length,
             processed_users: processed_users,
             grouped_by_country: grouped,
@@ -246,8 +261,8 @@ after_initialize do
 
   # Registrar las rutas directamente
   Discourse::Application.routes.append do
+    get '/discourse-users' => 'discourse_users#index'
     get '/discourse/users' => 'discourse_users#users'
-    get '/discourse-users-page' => 'discourse_users#page'
     get '/discourse/debug' => 'discourse_users#debug'
     post '/discourse/save_settings' => 'discourse_users#save_settings'
   end
