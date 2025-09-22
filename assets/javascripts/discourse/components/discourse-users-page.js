@@ -73,10 +73,11 @@ export default Component.extend({
         method: "GET"
       })
       .then(response => {
-        if (response.success) {
-          this.set("users", response.users_by_country);
+        // El endpoint devuelve directamente el objeto agrupado por países
+        if (response && typeof response === 'object') {
+          this.set("users", response);
         } else {
-          this.set("error", response.error || "Error desconocido");
+          this.set("error", "Formato de respuesta inválido");
         }
       })
       .catch(error => {
