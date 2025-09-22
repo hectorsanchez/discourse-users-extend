@@ -17,7 +17,7 @@ export default {
       api.onPageChange(() => {
         // Solo procesar si estamos en las páginas específicas
         const currentPath = window.location.pathname;
-        const isDiscourseUsersPage = currentPath === "/discourse/users" || currentPath === "/discourse-users-page";
+        const isDiscourseUsersPage = currentPath === "/discourse/users" || currentPath === "/discourse-users";
         
         if (isDiscourseUsersPage) {
           showDiscourseUsersInterface();
