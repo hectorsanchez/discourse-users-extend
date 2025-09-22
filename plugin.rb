@@ -35,8 +35,8 @@ after_initialize do
       end
 
       begin
-        # Obtener lista de usuarios del directorio
-        directory_url = "#{discourse_url}/directory_items.json?order=created&period=all&limit=#{limit}"
+        # Obtener lista de usuarios del directorio (usar límite pequeño para debug)
+        directory_url = "#{discourse_url}/directory_items.json?order=created&period=all&limit=10"
         Rails.logger.info "Making request to: #{directory_url}"
         directory_response = make_api_request(directory_url, api_key, api_username)
         Rails.logger.info "Directory response status: #{directory_response[:status_code]}"
