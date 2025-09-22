@@ -58,7 +58,7 @@ after_initialize do
         render json: { error: "API Key y URL de Discourse no configurados correctamente." }, status: 400
           return
         end
-
+        
       # Simular el procesamiento completo como en el método users
       begin
         # Obtener lista de usuarios del directorio
@@ -172,13 +172,4 @@ after_initialize do
     end
   end
 
-end
-
-# Registrar las rutas directamente (fuera del bloque after_initialize)
-Discourse::Application.routes.append do
-  get '/discourse-users' => 'discourse_users#index'
-  get '/discourse/users' => 'discourse_users#users'
-  get '/discourse/debug' => 'discourse_users#debug'
-  get '/discourse/test' => 'discourse_users#test'
-  post '/discourse/save_settings' => 'discourse_users#save_settings'
 end
