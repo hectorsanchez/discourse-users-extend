@@ -47,41 +47,61 @@ after_initialize do
           users = directory_data['directory_items'].map { |item| item['user'] }
           Rails.logger.info "Found #{users.length} users in directory"
           
-          # Procesar usuarios como en el método real
+          # Procesar usuarios de forma más robusta
           Rails.logger.info "Starting to process #{users.length} users"
-          processed_users = users.map.with_index do |user, index|
+          processed_users = []
+          
+          users.each_with_index do |user, index|
             Rails.logger.info "Processing user #{index + 1}/#{users.length}: #{user['username']}"
-            # Obtener perfil completo del usuario
-            user_url = "#{discourse_url}/users/#{user['username']}.json"
-            user_response = make_api_request(user_url, api_key, api_username)
-            Rails.logger.info "User #{user['username']} response status: #{user_response[:status_code]}"
             
-            if user_response[:status_code] == 200
-              user_data = JSON.parse(user_response[:body])['user']
-              location = user_data['location']
+            begin
+              # Obtener perfil completo del usuario con timeout más corto
+              user_url = "#{discourse_url}/users/#{user['username']}.json"
+              user_response = make_api_request(user_url, api_key, api_username)
               
-              country = if location.present?
-                if location.include?(',')
-                  location.split(',').last.strip
+              if user_response[:status_code] == 200
+                user_data = JSON.parse(user_response[:body])['user']
+                location = user_data['location']
+                
+                country = if location.present?
+                  if location.include?(',')
+                    location.split(',').last.strip
+                  else
+                    location
+                  end
                 else
-                  location
+                  "Sin país"
                 end
+                
+                processed_users << {
+                  firstname: user_data['name']&.split(' ')&.first || user_data['username'],
+                  lastname: user_data['name']&.split(' ')&.drop(1)&.join(' ') || '',
+                  email: user_data['email'],
+                  username: user_data['username'],
+                  country: country,
+                  location: location,
+                  trust_level: user_data['trust_level'] || 0,
+                  avatar_template: user_data['avatar_template']
+                }
+                Rails.logger.info "Successfully processed user #{user['username']} with country: #{country}"
               else
-                "Sin país"
+                # Si falla la petición individual, usar datos básicos
+                Rails.logger.warn "Failed to get full profile for #{user['username']}, using basic data"
+                processed_users << {
+                  firstname: user['name']&.split(' ')&.first || user['username'],
+                  lastname: user['name']&.split(' ')&.drop(1)&.join(' ') || '',
+                  email: user['email'],
+                  username: user['username'],
+                  country: "Sin país",
+                  location: nil,
+                  trust_level: user['trust_level'] || 0,
+                  avatar_template: user['avatar_template']
+                }
               end
-              
-              {
-                firstname: user_data['name']&.split(' ')&.first || user_data['username'],
-                lastname: user_data['name']&.split(' ')&.drop(1)&.join(' ') || '',
-                email: user_data['email'],
-                username: user_data['username'],
-                country: country,
-                location: location,
-                trust_level: user_data['trust_level'] || 0,
-                avatar_template: user_data['avatar_template']
-              }
-            else
-              {
+            rescue => e
+              # Si hay cualquier error, usar datos básicos y continuar
+              Rails.logger.error "Error processing user #{user['username']}: #{e.message}"
+              processed_users << {
                 firstname: user['name']&.split(' ')&.first || user['username'],
                 lastname: user['name']&.split(' ')&.drop(1)&.join(' ') || '',
                 email: user['email'],
@@ -92,6 +112,9 @@ after_initialize do
                 avatar_template: user['avatar_template']
               }
             end
+            
+            # Pequeña pausa para no sobrecargar el servidor
+            sleep(0.1) if index < users.length - 1
           end
           
           # Agrupar por país
