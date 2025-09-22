@@ -17,7 +17,7 @@ export default {
       api.onPageChange(() => {
         // Solo procesar si estamos en las páginas específicas
         const currentPath = window.location.pathname;
-        const isDiscourseUsersPage = currentPath === "/discourse/users" || currentPath === "/discourse-users";
+        const isDiscourseUsersPage = currentPath === "/discourse/users";
         
         if (isDiscourseUsersPage) {
           showDiscourseUsersInterface();
@@ -155,7 +155,7 @@ let allCountries = [];
 
 async function loadDiscourseUsers() {
   try {
-    const response = await fetch('/discourse/users');
+    const response = await fetch('/discourse/users/api');
     const data = await response.json();
     
     if (data.success) {

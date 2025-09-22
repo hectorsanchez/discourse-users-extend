@@ -69,7 +69,7 @@ export default Component.extend({
       this.set("loading", true);
       this.set("error", null);
 
-      ajax("/discourse/users", {
+        ajax("/discourse/users/api", {
         method: "GET"
       })
       .then(response => {
