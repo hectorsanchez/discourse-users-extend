@@ -155,18 +155,27 @@ after_initialize do
           return
         end
 
+        Rails.logger.info "Total users obtained: #{all_users.length}"
+        Rails.logger.info "Sample user data: #{all_users.first.inspect}" if all_users.any?
+
         # Procesar usuarios y agrupar por país
         processed_users = all_users.map do |user|
           # Extraer país de la ubicación
           location = user['location']
+          Rails.logger.info "Processing user: #{user['username']}, location: '#{location}'"
+          
           country = if location.present?
             # Si la ubicación contiene una coma, tomar la parte después de la coma (país)
             if location.include?(',')
-              location.split(',').last.strip
+              extracted_country = location.split(',').last.strip
+              Rails.logger.info "Extracted country: '#{extracted_country}' from '#{location}'"
+              extracted_country
             else
+              Rails.logger.info "Using full location as country: '#{location}'"
               location
             end
           else
+            Rails.logger.info "No location found for user: #{user['username']}"
             "Sin país"
           end
           
@@ -212,8 +221,8 @@ after_initialize do
     end
 
     def page
-      # Renderizar la página HTML
-      render html: "<div id='discourse-users-page'></div>".html_safe, layout: 'application'
+      # Renderizar la página usando el template de Discourse
+      render 'discourse_users/page', layout: 'application'
     end
 
     def debug
