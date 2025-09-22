@@ -10,30 +10,87 @@ after_initialize do
     skip_before_action :redirect_to_login_if_required, only: [:index, :users, :debug, :test]
     
     def index
-      # Página principal - renderizar la vista
-      render 'discourse_users/index', layout: 'application'
+      # Página principal - renderizar HTML simple
+      render html: '<div id="discourse-users-page"></div>'.html_safe, layout: 'application'
     end
     
     def users
-      # Prueba simple - devolver datos estáticos primero
+      # Devolver datos reales de la API
       response.headers['Content-Type'] = 'application/json'
       response.headers['Access-Control-Allow-Origin'] = '*'
       
-      # Devolver datos de prueba estáticos
-      render json: {
-        "Italy" => [
-          {
-            firstname: "Test",
-            lastname: "User",
-            email: "test@example.com",
-            username: "testuser",
-            country: "Italy",
-            location: "Rome, Italy",
-            trust_level: 1,
-            avatar_template: "/test.png"
-          }
-        ]
-      }
+      api_key = SiteSetting.dmu_discourse_api_key
+      api_username = SiteSetting.dmu_discourse_api_username
+      discourse_url = SiteSetting.dmu_discourse_api_url
+      
+      if api_key.blank? || discourse_url.blank?
+        render json: { error: "API Key y URL de Discourse no configurados correctamente." }, status: 400
+        return
+      end
+
+      begin
+        # Obtener lista de usuarios del directorio
+        directory_url = "#{discourse_url}/directory_items.json?order=created&period=all&limit=10"
+        directory_response = make_api_request(directory_url, api_key, api_username)
+        
+        if directory_response[:status_code] == 200
+          directory_data = JSON.parse(directory_response[:body])
+          users = directory_data['directory_items'].map { |item| item['user'] }
+          
+          # Procesar usuarios
+          processed_users = users.map do |user|
+            # Obtener perfil completo del usuario
+            user_url = "#{discourse_url}/users/#{user['username']}.json"
+            user_response = make_api_request(user_url, api_key, api_username)
+            
+            if user_response[:status_code] == 200
+              user_data = JSON.parse(user_response[:body])['user']
+              location = user_data['location']
+              
+              country = if location.present?
+                if location.include?(',')
+                  location.split(',').last.strip
+                else
+                  location
+                end
+              else
+                "Sin país"
+              end
+              
+              {
+                firstname: user_data['name']&.split(' ')&.first || user_data['username'],
+                lastname: user_data['name']&.split(' ')&.drop(1)&.join(' ') || '',
+                email: user_data['email'],
+                username: user_data['username'],
+                location: location,
+                country: country,
+                trust_level: user_data['trust_level'],
+                avatar_template: user_data['avatar_template']
+              }
+            else
+              {
+                firstname: user['name']&.split(' ')&.first || user['username'],
+                lastname: user['name']&.split(' ')&.drop(1)&.join(' ') || '',
+                email: nil,
+                username: user['username'],
+                location: nil,
+                country: "Sin país",
+                trust_level: user['trust_level'],
+                avatar_template: user['avatar_template']
+              }
+            end
+          end
+          
+          # Agrupar por país
+          grouped = processed_users.group_by { |u| u[:country] }
+
+          render json: grouped
+        else
+          render json: { error: "Failed to get directory", response: directory_response }
+        end
+      rescue => e
+        render json: { error: "Error: #{e.message}" }
+      end
     end
 
     def test
