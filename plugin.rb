@@ -32,188 +32,77 @@ after_initialize do
       end
 
       begin
-        require 'net/http'
-        require 'uri'
-        require 'json'
+        # Obtener lista de usuarios del directorio
+        directory_url = "#{discourse_url}/directory_items.json?order=created&period=all&limit=#{limit}"
+        directory_response = make_api_request(directory_url, api_key, api_username)
         
-        # Obtener usuarios usando el directorio y luego obtener información completa de cada uno
-        all_users = []
-        
-        # Primero obtener la lista de usuarios del directorio
-        uri = URI("#{discourse_url}/directory_items.json")
-        uri.query = URI.encode_www_form({
-          'period' => 'all',
-          'order' => 'created',
-          'limit' => limit
-        })
-        
-        request_uri = URI(uri.to_s)
-        http = Net::HTTP.new(request_uri.host, request_uri.port)
-        http.use_ssl = true if request_uri.scheme == 'https'
-        http.read_timeout = 30
-        
-        request = Net::HTTP::Get.new(request_uri)
-        request['Api-Key'] = api_key
-        request['Api-Username'] = api_username
-        
-        response_http = http.request(request)
-        
-        if response_http.code.to_i == 200
-          data = JSON.parse(response_http.body)
-          if data['directory_items']
-            # Obtener información completa de cada usuario
-            data['directory_items'].each do |item|
-              user = item['user']
-              if user && user['username']
-                # Obtener información completa del usuario
-                user_uri = URI("#{discourse_url}/users/#{user['username']}.json")
-                user_request_uri = URI(user_uri.to_s)
-                user_http = Net::HTTP.new(user_request_uri.host, user_request_uri.port)
-                user_http.use_ssl = true if user_request_uri.scheme == 'https'
-                user_http.read_timeout = 10
-                
-                user_request = Net::HTTP::Get.new(user_request_uri)
-                user_request['Api-Key'] = api_key
-                user_request['Api-Username'] = api_username
-                
-                user_response = user_http.request(user_request)
-                
-                if user_response.code.to_i == 200
-                  user_data = JSON.parse(user_response.body)
-                  if user_data['user']
-                    all_users << user_data['user']
-                  end
+        if directory_response[:status_code] == 200
+          directory_data = JSON.parse(directory_response[:body])
+          users = directory_data['directory_items'].map { |item| item['user'] }
+          
+          # Procesar usuarios como en el método real
+          processed_users = users.map do |user|
+            # Obtener perfil completo del usuario
+            user_url = "#{discourse_url}/users/#{user['username']}.json"
+            user_response = make_api_request(user_url, api_key, api_username)
+            
+            if user_response[:status_code] == 200
+              user_data = JSON.parse(user_response[:body])['user']
+              location = user_data['location']
+              
+              country = if location.present?
+                if location.include?(',')
+                  location.split(',').last.strip
                 else
-                  # Si falla, usar los datos básicos que tenemos
-                  all_users << user
+                  location
                 end
+              else
+                "Sin país"
               end
-            end
-          end
-        else
-          Rails.logger.warn "Error obteniendo usuarios del directorio: #{response_http.code}"
-        end
-        
-        # Si no obtuvimos usuarios de los grupos de confianza, intentar con el endpoint de usuarios
-        if all_users.empty?
-          # Intentar con el endpoint de usuarios con más detalles
-          uri = URI("#{discourse_url}/admin/users/list/active.json")
-          uri.query = URI.encode_www_form({
-            'limit' => limit,
-            'offset' => 0,
-            'order' => 'created',
-            'asc' => 'true'
-          })
-          
-          request_uri = URI(uri.to_s)
-          http = Net::HTTP.new(request_uri.host, request_uri.port)
-          http.use_ssl = true if request_uri.scheme == 'https'
-          http.read_timeout = 30
-          
-          request = Net::HTTP::Get.new(request_uri)
-          request['Api-Key'] = api_key
-          request['Api-Username'] = api_username
-          
-          response_http = http.request(request)
-          
-          if response_http.code.to_i == 200
-            data = JSON.parse(response_http.body)
-            all_users = data if data.is_a?(Array)
-          end
-        end
-        
-        # Si aún no tenemos usuarios, intentar con el endpoint de usuarios públicos
-        if all_users.empty?
-          uri = URI("#{discourse_url}/directory_items.json")
-          uri.query = URI.encode_www_form({
-            'period' => 'all',
-            'order' => 'created',
-            'limit' => limit
-          })
-          
-          request_uri = URI(uri.to_s)
-          http = Net::HTTP.new(request_uri.host, request_uri.port)
-          http.use_ssl = true if request_uri.scheme == 'https'
-          http.read_timeout = 30
-          
-          request = Net::HTTP::Get.new(request_uri)
-          request['Api-Key'] = api_key
-          request['Api-Username'] = api_username
-          
-          response_http = http.request(request)
-          
-          if response_http.code.to_i == 200
-            data = JSON.parse(response_http.body)
-            if data['directory_items']
-              all_users = data['directory_items'].map { |item| item['user'] }.compact
-            end
-          end
-        end
-        
-        if all_users.empty?
-          render json: { error: "No se pudieron obtener usuarios de Discourse" }, status: 500
-          return
-        end
-
-        Rails.logger.info "Total users obtained: #{all_users.length}"
-        Rails.logger.info "Sample user data: #{all_users.first.inspect}" if all_users.any?
-
-        # Procesar usuarios y agrupar por país
-        processed_users = all_users.map do |user|
-          # Extraer país de la ubicación
-          location = user['location']
-          Rails.logger.info "Processing user: #{user['username']}, location: '#{location}'"
-          
-          country = if location.present?
-            # Si la ubicación contiene una coma, tomar la parte después de la coma (país)
-            if location.include?(',')
-              extracted_country = location.split(',').last.strip
-              Rails.logger.info "Extracted country: '#{extracted_country}' from '#{location}'"
-              extracted_country
+              
+              {
+                firstname: user_data['name']&.split(' ')&.first || user_data['username'],
+                lastname: user_data['name']&.split(' ')&.drop(1)&.join(' ') || '',
+                email: user_data['email'],
+                username: user_data['username'],
+                country: country,
+                location: location,
+                trust_level: user_data['trust_level'] || 0,
+                avatar_template: user_data['avatar_template']
+              }
             else
-              Rails.logger.info "Using full location as country: '#{location}'"
-              location
+              {
+                firstname: user['name']&.split(' ')&.first || user['username'],
+                lastname: user['name']&.split(' ')&.drop(1)&.join(' ') || '',
+                email: user['email'],
+                username: user['username'],
+                country: "Sin país",
+                location: nil,
+                trust_level: user['trust_level'] || 0,
+                avatar_template: user['avatar_template']
+              }
             end
-          else
-            Rails.logger.info "No location found for user: #{user['username']}"
-            "Sin país"
           end
           
-          {
-            firstname: user['name']&.split(' ')&.first || user['username'],
-            lastname: user['name']&.split(' ')&.drop(1)&.join(' ') || '',
-            email: user['email'],
-            username: user['username'],
-            country: country,
-            location: location, # Guardar ubicación original para mostrar en la ficha
-            trust_level: user['trust_level'] || 0,
-            avatar_template: user['avatar_template']
-          }
-        end
+          # Agrupar por país
+          grouped = processed_users.group_by { |u| u[:country] }
+          result = grouped.transform_values do |arr|
+            arr.map { |u| {
+              firstname: u[:firstname], 
+              lastname: u[:lastname], 
+              email: u[:email],
+              username: u[:username],
+              country: u[:country],
+              location: u[:location] || u[:country],
+              trust_level: u[:trust_level],
+              avatar_template: u[:avatar_template]
+            } }
+          end
 
-        grouped = processed_users.group_by { |u| u[:country] }
-        result = grouped.transform_values do |arr|
-          arr.map { |u|           {
-            firstname: u[:firstname], 
-            lastname: u[:lastname], 
-            email: u[:email],
-            username: u[:username],
-            country: u[:country],
-            location: u[:location] || u[:country], # Mostrar ubicación completa en la ficha
-            trust_level: u[:trust_level],
-            avatar_template: u[:avatar_template]
-          } }
+          render json: result
+        else
+          render json: { error: "Failed to get directory", response: directory_response }, status: 500
         end
-
-        render json: { 
-          success: true,
-          users_by_country: result, 
-          total_users: processed_users.length,
-          timestamp: Time.current.iso8601
-        }
-      rescue JSON::ParserError => e
-        Rails.logger.error "Error parsing Discourse API response: #{e.message}"
-        render json: { error: "Respuesta inválida de la API de Discourse" }, status: 500
       rescue => e
         Rails.logger.error "Error en Discourse API: #{e.message}"
         render json: { error: "Error al obtener usuarios: #{e.message}" }, status: 500
@@ -363,6 +252,3 @@ after_initialize do
     post '/discourse/save_settings' => 'discourse_users#save_settings'
   end
 end
-
-
-
