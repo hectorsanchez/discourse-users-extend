@@ -36,37 +36,35 @@ after_initialize do
         require 'uri'
         require 'json'
         
-        # Obtener usuarios de todos los niveles de confianza
+        # Obtener usuarios usando el directorio de usuarios (más información de perfil)
         all_users = []
-        trust_levels = [0, 1, 2, 3, 4]
         
-        trust_levels.each do |trust_level|
-          # Construir la URL para obtener usuarios del nivel de confianza
-          uri = URI("#{discourse_url}/groups/trust_level_#{trust_level}/members.json")
-          uri.query = URI.encode_www_form({
-            'limit' => limit,
-            'offset' => 0
-          })
-          
-          request_uri = URI(uri.to_s)
-          http = Net::HTTP.new(request_uri.host, request_uri.port)
-          http.use_ssl = true if request_uri.scheme == 'https'
-          http.read_timeout = 30
-          
-          request = Net::HTTP::Get.new(request_uri)
-          request['Api-Key'] = api_key
-          request['Api-Username'] = api_username
-          
-          response_http = http.request(request)
-          
-          if response_http.code.to_i == 200
-            data = JSON.parse(response_http.body)
-            if data['members']
-              all_users.concat(data['members'])
-            end
-          else
-            Rails.logger.warn "Error obteniendo usuarios de trust_level_#{trust_level}: #{response_http.code}"
+        # Usar el endpoint de directorio que tiene más información de perfil
+        uri = URI("#{discourse_url}/directory_items.json")
+        uri.query = URI.encode_www_form({
+          'period' => 'all',
+          'order' => 'created',
+          'limit' => limit
+        })
+        
+        request_uri = URI(uri.to_s)
+        http = Net::HTTP.new(request_uri.host, request_uri.port)
+        http.use_ssl = true if request_uri.scheme == 'https'
+        http.read_timeout = 30
+        
+        request = Net::HTTP::Get.new(request_uri)
+        request['Api-Key'] = api_key
+        request['Api-Username'] = api_username
+        
+        response_http = http.request(request)
+        
+        if response_http.code.to_i == 200
+          data = JSON.parse(response_http.body)
+          if data['directory_items']
+            all_users = data['directory_items'].map { |item| item['user'] }.compact
           end
+        else
+          Rails.logger.warn "Error obteniendo usuarios del directorio: #{response_http.code}"
         end
         
         # Si no obtuvimos usuarios de los grupos de confianza, intentar con el endpoint de usuarios
@@ -202,11 +200,12 @@ after_initialize do
         require 'uri'
         require 'json'
         
-        # Probar endpoint de grupos de confianza
-        uri = URI("#{discourse_url}/groups/trust_level_0/members.json")
+        # Probar endpoint de directorio de usuarios
+        uri = URI("#{discourse_url}/directory_items.json")
         uri.query = URI.encode_www_form({
-          'limit' => 3,
-          'offset' => 0
+          'period' => 'all',
+          'order' => 'created',
+          'limit' => 3
         })
         
         request_uri = URI(uri.to_s)
@@ -229,9 +228,10 @@ after_initialize do
         if response_http.code.to_i == 200
           data = JSON.parse(response_http.body)
           debug_data[:parsed_data] = data
-          if data['members'] && data['members'].any?
-            debug_data[:sample_user] = data['members'].first
-            debug_data[:sample_user_keys] = data['members'].first.keys
+          if data['directory_items'] && data['directory_items'].any?
+            user_data = data['directory_items'].first['user']
+            debug_data[:sample_user] = user_data
+            debug_data[:sample_user_keys] = user_data.keys
           end
         end
         
