@@ -1,0 +1,23 @@
+<!-- assets/javascripts/discourse/templates/admin/discourse_api_settings.html.haml -->
+
+{{discourse-api-settings}}
+
+<h2>Configuración de la API de Discourse</h2>
+<div>
+  <label>API Key de autenticación para la API de Discourse</label>
+  {{input value=dmu_discourse_api_key placeholder="API Key de autenticación para la API de Discourse"}}
+</div>
+<div>
+  <label>Usuario para la autenticación de la API</label>
+  {{input value=dmu_discourse_api_username placeholder="system"}}
+</div>
+<div>
+  <label>URL del servidor Discourse para la API</label>
+  {{input value=dmu_discourse_api_url placeholder="https://discourse.youth-care.eu"}}
+</div>
+<div>
+  <label>Límite de usuarios por petición</label>
+  {{input value=dmu_discourse_api_limit placeholder="100" type="number"}}
+</div>
+<button class="btn btn-primary" {{action "saveSettings"}}>Guardar</button>
+

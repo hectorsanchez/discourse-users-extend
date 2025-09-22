@@ -1,0 +1,39 @@
+# config/settings.yml
+
+plugin:
+  dmu_enabled:
+    default: true
+    type: "bool"
+    description: "Habilitar el plugin de usuarios de Discourse"
+
+  dmu_discourse_api_key:
+    default: ""
+    type: "string"
+    minlength: 1
+    maxlength: 255
+    placeholder: "API Key para la API de Discourse"
+    description: "Introduce la API Key de autenticación para la API de Discourse"
+
+  dmu_discourse_api_username:
+    default: "system"
+    type: "string"
+    minlength: 1
+    maxlength: 255
+    placeholder: "system"
+    description: "Usuario para la autenticación de la API (recomendado: system)"
+
+  dmu_discourse_api_url:
+    default: ""
+    type: "string"
+    minlength: 1
+    maxlength: 255
+    placeholder: "https://discourse.youth-care.eu"
+    description: "URL del servidor Discourse para la API"
+
+  dmu_discourse_api_limit:
+    default: 100
+    type: "integer"
+    min: 1
+    max: 1000
+    description: "Número máximo de usuarios a obtener por petición"
+
