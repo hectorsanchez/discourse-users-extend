@@ -15,36 +15,15 @@ export default {
 
       // Interceptar el click en el enlace del sidebar
       api.onPageChange(() => {
-        const discourseLink = document.querySelector('a[data-link-name="discourse-users"]');
-        if (discourseLink && !discourseLink.hasAttribute('data-intercepted')) {
-          discourseLink.setAttribute('data-intercepted', 'true');
-          discourseLink.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            
-            // Navegar a /discourse/users programáticamente
-            window.history.pushState({}, '', '/discourse/users');
-            
-            // Mostrar la interfaz de usuarios de Discourse
-            showDiscourseUsersInterface();
-          });
-        }
+        // Solo procesar si estamos en las páginas específicas
+        const currentPath = window.location.pathname;
+        const isDiscourseUsersPage = currentPath === "/discourse/users" || currentPath === "/discourse-users-page";
         
-        // Detectar si estamos en /discourse/users o /discourse-users-page
-        if (window.location.pathname === "/discourse/users" || window.location.pathname === "/discourse-users-page") {
+        if (isDiscourseUsersPage) {
           showDiscourseUsersInterface();
         } else {
-          // Si no estamos en /discourse/users, asegurar que la interfaz esté oculta
+          // Si no estamos en las páginas de usuarios, asegurar que la interfaz esté oculta
           hideDiscourseUsersInterface();
-          
-          // Verificar que el contenido principal esté visible
-          setTimeout(() => {
-            const mainOutlet = document.getElementById('main-outlet');
-            if (mainOutlet && mainOutlet.style.display === 'none') {
-              console.log('Forzando visibilidad del contenido principal');
-              mainOutlet.style.display = 'block';
-            }
-          }, 100);
         }
       });
     });

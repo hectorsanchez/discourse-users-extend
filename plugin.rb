@@ -71,10 +71,13 @@ after_initialize do
         
         # Si no obtuvimos usuarios de los grupos de confianza, intentar con el endpoint de usuarios
         if all_users.empty?
+          # Intentar con el endpoint de usuarios con más detalles
           uri = URI("#{discourse_url}/admin/users/list/active.json")
           uri.query = URI.encode_www_form({
             'limit' => limit,
-            'offset' => 0
+            'offset' => 0,
+            'order' => 'created',
+            'asc' => 'true'
           })
           
           request_uri = URI(uri.to_s)
@@ -94,6 +97,34 @@ after_initialize do
           end
         end
         
+        # Si aún no tenemos usuarios, intentar con el endpoint de usuarios públicos
+        if all_users.empty?
+          uri = URI("#{discourse_url}/directory_items.json")
+          uri.query = URI.encode_www_form({
+            'period' => 'all',
+            'order' => 'created',
+            'limit' => limit
+          })
+          
+          request_uri = URI(uri.to_s)
+          http = Net::HTTP.new(request_uri.host, request_uri.port)
+          http.use_ssl = true if request_uri.scheme == 'https'
+          http.read_timeout = 30
+          
+          request = Net::HTTP::Get.new(request_uri)
+          request['Api-Key'] = api_key
+          request['Api-Username'] = api_username
+          
+          response_http = http.request(request)
+          
+          if response_http.code.to_i == 200
+            data = JSON.parse(response_http.body)
+            if data['directory_items']
+              all_users = data['directory_items'].map { |item| item['user'] }.compact
+            end
+          end
+        end
+        
         if all_users.empty?
           render json: { error: "No se pudieron obtener usuarios de Discourse" }, status: 500
           return
@@ -101,12 +132,17 @@ after_initialize do
 
         # Procesar usuarios y agrupar por país
         processed_users = all_users.map do |user|
+          # Log para debug - ver qué campos tenemos disponibles
+          Rails.logger.info "User data: #{user.keys.join(', ')}"
+          Rails.logger.info "User location: #{user['location']}"
+          Rails.logger.info "User profile_data: #{user['profile_data']}"
+          
           {
             firstname: user['name']&.split(' ')&.first || user['username'],
             lastname: user['name']&.split(' ')&.drop(1)&.join(' ') || '',
             email: user['email'],
             username: user['username'],
-            country: user['location'] || "Sin país",
+            country: user['location'] || user.dig('profile_data', 'location') || "Sin país",
             trust_level: user['trust_level'] || 0,
             avatar_template: user['avatar_template']
           }
