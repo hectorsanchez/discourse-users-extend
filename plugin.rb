@@ -221,8 +221,8 @@ after_initialize do
     end
 
     def page
-      # Renderizar la página usando el template de Discourse
-      render 'discourse_users/page', layout: 'application'
+      # Renderizar la página HTML directamente
+      render html: "<div id='discourse-users-page'></div>".html_safe, layout: 'application'
     end
 
     def debug
@@ -230,8 +230,8 @@ after_initialize do
       response.headers['Content-Type'] = 'application/json'
       response.headers['Access-Control-Allow-Origin'] = '*'
       
-      # Solo permitir a administradores
-      return render json: { error: "Unauthorized" }, status: 401 unless current_user&.admin?
+      # Permitir a todos los usuarios para debug
+      # return render json: { error: "Unauthorized" }, status: 401 unless current_user&.admin?
       
       api_key = SiteSetting.dmu_discourse_api_key
       api_username = SiteSetting.dmu_discourse_api_username
