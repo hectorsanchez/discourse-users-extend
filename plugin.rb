@@ -7,9 +7,9 @@ after_initialize do
   # Controlador simple sin Engine
   class ::DiscourseUsersController < ::ApplicationController
     skip_before_action :verify_authenticity_token
-    skip_before_action :check_xhr, only: [:users]
-    skip_before_action :preload_json, only: [:users]
-    skip_before_action :redirect_to_login_if_required, only: [:users]
+    skip_before_action :check_xhr, only: [:users, :page]
+    skip_before_action :preload_json, only: [:users, :page]
+    skip_before_action :redirect_to_login_if_required, only: [:users, :page]
     
     def users
       # Establecer headers para respuesta JSON
@@ -139,6 +139,11 @@ after_initialize do
       end
     end
 
+    def page
+      # Renderizar la página HTML
+      render html: "<div id='discourse-users-page'></div>".html_safe, layout: 'application'
+    end
+
     def save_settings
       return render json: { error: "Unauthorized" }, status: 401 unless current_user&.admin?
       
@@ -153,7 +158,7 @@ after_initialize do
   # Registrar las rutas directamente
   Discourse::Application.routes.append do
     get '/discourse/users' => 'discourse_users#users'
-    get '/discourse-users-page' => 'discourse_users#users'
+    get '/discourse-users-page' => 'discourse_users#page'
     post '/discourse/save_settings' => 'discourse_users#save_settings'
   end
 end
