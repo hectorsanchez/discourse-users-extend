@@ -34,10 +34,11 @@ export default Component.extend({
       const searchLower = this.searchTerm.toLowerCase();
       Object.keys(filtered).forEach(country => {
         filtered[country] = filtered[country].filter(user => 
-          user.firstname.toLowerCase().includes(searchLower) ||
-          user.lastname.toLowerCase().includes(searchLower) ||
-          user.email.toLowerCase().includes(searchLower) ||
-          user.username.toLowerCase().includes(searchLower)
+          (user.firstname && user.firstname.toLowerCase().includes(searchLower)) ||
+          (user.lastname && user.lastname.toLowerCase().includes(searchLower)) ||
+          (user.email && user.email.toLowerCase().includes(searchLower)) ||
+          (user.username && user.username.toLowerCase().includes(searchLower)) ||
+          (user.country && user.country.toLowerCase().includes(searchLower))
         );
       });
     }

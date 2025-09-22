@@ -7,9 +7,9 @@ after_initialize do
   # Controlador simple sin Engine
   class ::DiscourseUsersController < ::ApplicationController
     skip_before_action :verify_authenticity_token
-    skip_before_action :check_xhr, only: [:users, :page]
-    skip_before_action :preload_json, only: [:users, :page]
-    skip_before_action :redirect_to_login_if_required, only: [:users, :page]
+    skip_before_action :check_xhr, only: [:users, :page, :debug]
+    skip_before_action :preload_json, only: [:users, :page, :debug]
+    skip_before_action :redirect_to_login_if_required, only: [:users, :page, :debug]
     
     def users
       # Establecer headers para respuesta JSON
@@ -183,6 +183,10 @@ after_initialize do
     def debug
       # Endpoint temporal para debug - ver qué datos devuelve la API
       response.headers['Content-Type'] = 'application/json'
+      response.headers['Access-Control-Allow-Origin'] = '*'
+      
+      # Solo permitir a administradores
+      return render json: { error: "Unauthorized" }, status: 401 unless current_user&.admin?
       
       api_key = SiteSetting.dmu_discourse_api_key
       api_username = SiteSetting.dmu_discourse_api_username

@@ -209,10 +209,11 @@ function filterUsers() {
   Object.keys(allUsers).forEach(country => {
     if (selectedCountry === 'all' || country === selectedCountry) {
       const countryUsers = allUsers[country].filter(user => 
-        user.firstname.toLowerCase().includes(searchTerm) ||
-        user.lastname.toLowerCase().includes(searchTerm) ||
-        user.email.toLowerCase().includes(searchTerm) ||
-        (user.username && user.username.toLowerCase().includes(searchTerm))
+        (user.firstname && user.firstname.toLowerCase().includes(searchTerm)) ||
+        (user.lastname && user.lastname.toLowerCase().includes(searchTerm)) ||
+        (user.email && user.email.toLowerCase().includes(searchTerm)) ||
+        (user.username && user.username.toLowerCase().includes(searchTerm)) ||
+        (user.country && user.country.toLowerCase().includes(searchTerm))
       );
       
       if (countryUsers.length > 0) {
@@ -259,7 +260,7 @@ function displayUsers(users) {
                 ${user.avatar_template ? 
                   `<img src="${user.avatar_template}" alt="Avatar" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover;">` :
                   `<div style="width: 48px; height: 48px; border-radius: 50%; background: var(--primary); color: var(--secondary); display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 1.2em;">
-                    ${getInitials(user.firstname, user.lastname)}
+                  ${getInitials(user.firstname, user.lastname)}
                   </div>`
                 }
               </div>
