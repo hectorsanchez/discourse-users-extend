@@ -36,10 +36,10 @@ after_initialize do
         require 'uri'
         require 'json'
         
-        # Obtener usuarios usando el directorio de usuarios (más información de perfil)
+        # Obtener usuarios usando el directorio y luego obtener información completa de cada uno
         all_users = []
         
-        # Usar el endpoint de directorio que tiene más información de perfil
+        # Primero obtener la lista de usuarios del directorio
         uri = URI("#{discourse_url}/directory_items.json")
         uri.query = URI.encode_www_form({
           'period' => 'all',
@@ -61,7 +61,34 @@ after_initialize do
         if response_http.code.to_i == 200
           data = JSON.parse(response_http.body)
           if data['directory_items']
-            all_users = data['directory_items'].map { |item| item['user'] }.compact
+            # Obtener información completa de cada usuario
+            data['directory_items'].each do |item|
+              user = item['user']
+              if user && user['username']
+                # Obtener información completa del usuario
+                user_uri = URI("#{discourse_url}/users/#{user['username']}.json")
+                user_request_uri = URI(user_uri.to_s)
+                user_http = Net::HTTP.new(user_request_uri.host, user_request_uri.port)
+                user_http.use_ssl = true if user_request_uri.scheme == 'https'
+                user_http.read_timeout = 10
+                
+                user_request = Net::HTTP::Get.new(user_request_uri)
+                user_request['Api-Key'] = api_key
+                user_request['Api-Username'] = api_username
+                
+                user_response = user_http.request(user_request)
+                
+                if user_response.code.to_i == 200
+                  user_data = JSON.parse(user_response.body)
+                  if user_data['user']
+                    all_users << user_data['user']
+                  end
+                else
+                  # Si falla, usar los datos básicos que tenemos
+                  all_users << user
+                end
+              end
+            end
           end
         else
           Rails.logger.warn "Error obteniendo usuarios del directorio: #{response_http.code}"
@@ -200,13 +227,8 @@ after_initialize do
         require 'uri'
         require 'json'
         
-        # Probar endpoint de directorio de usuarios
-        uri = URI("#{discourse_url}/directory_items.json")
-        uri.query = URI.encode_www_form({
-          'period' => 'all',
-          'order' => 'created',
-          'limit' => 3
-        })
+        # Probar endpoint de usuario individual (más información de perfil)
+        uri = URI("#{discourse_url}/users/jason.nardi.json")
         
         request_uri = URI(uri.to_s)
         http = Net::HTTP.new(request_uri.host, request_uri.port)
@@ -228,8 +250,8 @@ after_initialize do
         if response_http.code.to_i == 200
           data = JSON.parse(response_http.body)
           debug_data[:parsed_data] = data
-          if data['directory_items'] && data['directory_items'].any?
-            user_data = data['directory_items'].first['user']
+          if data['user']
+            user_data = data['user']
             debug_data[:sample_user] = user_data
             debug_data[:sample_user_keys] = user_data.keys
           end
