@@ -176,6 +176,7 @@ after_initialize do
             email: user['email'],
             username: user['username'],
             country: country,
+            location: location, # Guardar ubicación original para mostrar en la ficha
             trust_level: user['trust_level'] || 0,
             avatar_template: user['avatar_template']
           }
@@ -183,11 +184,13 @@ after_initialize do
 
         grouped = processed_users.group_by { |u| u[:country] }
         result = grouped.transform_values do |arr|
-          arr.map { |u| { 
+          arr.map { |u|           {
             firstname: u[:firstname], 
             lastname: u[:lastname], 
             email: u[:email],
             username: u[:username],
+            country: u[:country],
+            location: u[:location] || u[:country], # Mostrar ubicación completa en la ficha
             trust_level: u[:trust_level],
             avatar_template: u[:avatar_template]
           } }

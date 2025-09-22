@@ -38,7 +38,8 @@ export default Component.extend({
           (user.lastname && user.lastname.toLowerCase().includes(searchLower)) ||
           (user.email && user.email.toLowerCase().includes(searchLower)) ||
           (user.username && user.username.toLowerCase().includes(searchLower)) ||
-          (user.country && user.country.toLowerCase().includes(searchLower))
+          (user.country && user.country.toLowerCase().includes(searchLower)) ||
+          (user.location && user.location.toLowerCase().includes(searchLower))
         );
       });
     }
