@@ -11,32 +11,6 @@ after_initialize do
     skip_before_action :preload_json, only: [:users, :page, :debug]
     skip_before_action :redirect_to_login_if_required, only: [:users, :page, :debug]
     
-    private
-    
-    def make_api_request(url, api_key, api_username)
-      require 'net/http'
-      require 'uri'
-      require 'json'
-      
-      uri = URI(url)
-      request_uri = URI(uri.to_s)
-      http = Net::HTTP.new(request_uri.host, request_uri.port)
-      http.use_ssl = true if request_uri.scheme == 'https'
-      http.read_timeout = 30
-      
-      request = Net::HTTP::Get.new(request_uri)
-      request['Api-Key'] = api_key
-      request['Api-Username'] = api_username
-      
-      response_http = http.request(request)
-      
-      {
-        status_code: response_http.code.to_i,
-        headers: response_http.to_hash,
-        body: response_http.body
-      }
-    end
-    
     def users
       # Establecer headers para respuesta JSON
       response.headers['Content-Type'] = 'application/json'
@@ -247,22 +221,8 @@ after_initialize do
     end
 
     def page
-      # Renderizar la página HTML directamente sin layout de Discourse
-      render html: "<!DOCTYPE html>
-<html>
-<head>
-  <title>Discourse Users</title>
-  <meta charset='utf-8'>
-  <meta name='viewport' content='width=device-width, initial-scale=1'>
-  <style>
-    body { font-family: Arial, sans-serif; margin: 0; padding: 20px; }
-    #discourse-users-page { max-width: 1200px; margin: 0 auto; }
-  </style>
-</head>
-<body>
-  <div id='discourse-users-page'></div>
-</body>
-</html>".html_safe
+      # Renderizar la página HTML directamente
+      render html: "<div id='discourse-users-page'></div>".html_safe
     end
 
     def debug
@@ -366,6 +326,32 @@ after_initialize do
       SiteSetting.dmu_discourse_api_url = params[:dmu_discourse_api_url]
       SiteSetting.dmu_discourse_api_limit = params[:dmu_discourse_api_limit]
       render json: { success: true }
+    end
+    
+    private
+    
+    def make_api_request(url, api_key, api_username)
+      require 'net/http'
+      require 'uri'
+      require 'json'
+      
+      uri = URI(url)
+      request_uri = URI(uri.to_s)
+      http = Net::HTTP.new(request_uri.host, request_uri.port)
+      http.use_ssl = true if request_uri.scheme == 'https'
+      http.read_timeout = 30
+      
+      request = Net::HTTP::Get.new(request_uri)
+      request['Api-Key'] = api_key
+      request['Api-Username'] = api_username
+      
+      response_http = http.request(request)
+      
+      {
+        status_code: response_http.code.to_i,
+        headers: response_http.to_hash,
+        body: response_http.body
+      }
     end
   end
 
