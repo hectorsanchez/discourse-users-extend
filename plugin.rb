@@ -36,6 +36,11 @@ after_initialize do
       }
     end
 
+    def test
+      # Endpoint de prueba ultra simple
+      render plain: "TEST WORKS"
+    end
+
 
     def debug
       # Endpoint temporal para debug - ver qué datos devuelve la API
@@ -172,6 +177,7 @@ after_initialize do
     get '/discourse-users' => 'discourse_users#index'
     get '/discourse/users' => 'discourse_users#users'
     get '/discourse/debug' => 'discourse_users#debug'
+    get '/discourse/test' => 'discourse_users#test'
     post '/discourse/save_settings' => 'discourse_users#save_settings'
   end
 end
