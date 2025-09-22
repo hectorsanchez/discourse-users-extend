@@ -153,6 +153,7 @@ after_initialize do
   # Registrar las rutas directamente
   Discourse::Application.routes.append do
     get '/discourse/users' => 'discourse_users#users'
+    get '/discourse-users-page' => 'discourse_users#users'
     post '/discourse/save_settings' => 'discourse_users#save_settings'
   end
 end

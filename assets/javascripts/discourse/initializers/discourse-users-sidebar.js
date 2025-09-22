@@ -30,8 +30,8 @@ export default {
           });
         }
         
-        // Detectar si estamos en /discourse/users
-        if (window.location.pathname === "/discourse/users") {
+        // Detectar si estamos en /discourse/users o /discourse-users-page
+        if (window.location.pathname === "/discourse/users" || window.location.pathname === "/discourse-users-page") {
           showDiscourseUsersInterface();
         } else {
           // Si no estamos en /discourse/users, asegurar que la interfaz esté oculta
