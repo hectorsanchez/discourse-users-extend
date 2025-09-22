@@ -15,95 +15,25 @@ after_initialize do
     end
     
     def users
-      # Usar exactamente la misma lógica que el método debug que funciona
+      # Prueba simple - devolver datos estáticos primero
       response.headers['Content-Type'] = 'application/json'
       response.headers['Access-Control-Allow-Origin'] = '*'
       
-      api_key = SiteSetting.dmu_discourse_api_key
-      api_username = SiteSetting.dmu_discourse_api_username
-      discourse_url = SiteSetting.dmu_discourse_api_url
-      
-      if api_key.blank? || discourse_url.blank?
-        render json: { error: "API Key y URL de Discourse no configurados correctamente." }, status: 400
-        return
-      end
-
-      begin
-        # Obtener lista de usuarios del directorio (igual que debug)
-        directory_url = "#{discourse_url}/directory_items.json?order=created&period=all&limit=10"
-        directory_response = make_api_request(directory_url, api_key, api_username)
-        
-        if directory_response[:status_code] == 200
-          directory_data = JSON.parse(directory_response[:body])
-          users = directory_data['directory_items'].map { |item| item['user'] }
-          
-          # Procesar usuarios como en el método debug
-          processed_users = users.map do |user|
-            # Obtener perfil completo del usuario
-            user_url = "#{discourse_url}/users/#{user['username']}.json"
-            user_response = make_api_request(user_url, api_key, api_username)
-            
-            if user_response[:status_code] == 200
-              user_data = JSON.parse(user_response[:body])['user']
-              location = user_data['location']
-              
-              country = if location.present?
-                if location.include?(',')
-                  location.split(',').last.strip
-                else
-                  location
-                end
-              else
-                "Sin país"
-              end
-              
-              {
-                firstname: user_data['name']&.split(' ')&.first || user_data['username'],
-                lastname: user_data['name']&.split(' ')&.drop(1)&.join(' ') || '',
-                email: user_data['email'],
-                username: user_data['username'],
-                country: country,
-                location: location,
-                trust_level: user_data['trust_level'] || 0,
-                avatar_template: user_data['avatar_template']
-              }
-            else
-              {
-                firstname: user['name']&.split(' ')&.first || user['username'],
-                lastname: user['name']&.split(' ')&.drop(1)&.join(' ') || '',
-                email: user['email'],
-                username: user['username'],
-                country: "Sin país",
-                location: nil,
-                trust_level: user['trust_level'] || 0,
-                avatar_template: user['avatar_template']
-              }
-            end
-          end
-          
-          # Agrupar por país
-          grouped = processed_users.group_by { |u| u[:country] }
-          result = grouped.transform_values do |arr|
-            arr.map { |u| {
-              firstname: u[:firstname], 
-              lastname: u[:lastname], 
-              email: u[:email],
-              username: u[:username],
-              country: u[:country],
-              location: u[:location] || u[:country],
-              trust_level: u[:trust_level],
-              avatar_template: u[:avatar_template]
-            } }
-          end
-
-          render json: result
-        else
-          render json: { error: "Failed to get directory", response: directory_response }, status: 500
-        end
-      rescue => e
-        Rails.logger.error "Error en Discourse API: #{e.message}"
-        render json: { error: "Error al obtener usuarios: #{e.message}" }, status: 500
-      end
+      # Devolver datos de prueba estáticos
+      render json: {
+        "Italy" => [
+          {
+            firstname: "Test",
+            lastname: "User",
+            email: "test@example.com",
+            username: "testuser",
+            country: "Italy",
+            location: "Rome, Italy",
+            trust_level: 1,
+            avatar_template: "/test.png"
+          }
+        ]
+      }
     end
 
 
