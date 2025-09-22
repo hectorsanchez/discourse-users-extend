@@ -157,17 +157,25 @@ after_initialize do
 
         # Procesar usuarios y agrupar por país
         processed_users = all_users.map do |user|
-          # Log para debug - ver qué campos tenemos disponibles
-          Rails.logger.info "User data: #{user.keys.join(', ')}"
-          Rails.logger.info "User location: #{user['location']}"
-          Rails.logger.info "User profile_data: #{user['profile_data']}"
+          # Extraer país de la ubicación
+          location = user['location']
+          country = if location.present?
+            # Si la ubicación contiene una coma, tomar la parte después de la coma (país)
+            if location.include?(',')
+              location.split(',').last.strip
+            else
+              location
+            end
+          else
+            "Sin país"
+          end
           
           {
             firstname: user['name']&.split(' ')&.first || user['username'],
             lastname: user['name']&.split(' ')&.drop(1)&.join(' ') || '',
             email: user['email'],
             username: user['username'],
-            country: user['location'] || user.dig('profile_data', 'location') || "Sin país",
+            country: country,
             trust_level: user['trust_level'] || 0,
             avatar_template: user['avatar_template']
           }
