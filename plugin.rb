@@ -10,8 +10,16 @@ after_initialize do
     skip_before_action :redirect_to_login_if_required, only: [:index, :users, :debug, :test]
     
     def index
-      # Página principal - renderizar HTML simple
-      render html: '<div id="discourse-users-page"></div>'.html_safe, layout: 'application'
+      # Página principal - HTML completo sin JavaScript
+      html = <<~HTML
+        <div style="max-width: 1200px; margin: 0 auto; padding: 20px;">
+          <h1>👥 Usuarios de Discourse</h1>
+          <p>Plugin funcionando correctamente. Los datos se cargarán aquí.</p>
+          <p><a href="/discourse/debug">Ver datos de debug</a></p>
+          <p><a href="/discourse/test">Probar endpoint</a></p>
+        </div>
+      HTML
+      render html: html.html_safe, layout: 'application'
     end
     
     def users
