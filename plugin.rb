@@ -13,8 +13,10 @@ after_initialize do
     
     def index
       # Main page - return JSON data like the working moodle plugin
-      response.headers['Content-Type'] = 'application/json'
-      response.headers['Access-Control-Allow-Origin'] = '*'
+      respond_to do |format|
+        format.json do
+          response.headers['Content-Type'] = 'application/json'
+          response.headers['Access-Control-Allow-Origin'] = '*'
       
       api_key = SiteSetting.dmu_discourse_api_key
       api_username = SiteSetting.dmu_discourse_api_username
@@ -120,6 +122,13 @@ after_initialize do
         end
       rescue => e
         render json: { error: "Error: #{e.message}" }
+      end
+        end
+        
+        format.html do
+          # For HTML requests (from Discourse menu), return a simple page
+          render html: '<div id="main-outlet-wrapper"></div>'.html_safe, layout: 'application'
+        end
       end
     end
     
