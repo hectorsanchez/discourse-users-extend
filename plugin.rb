@@ -6,7 +6,9 @@
 after_initialize do
   # Controlador simple sin Engine
   class ::DiscourseUsersController < ::ApplicationController
+    skip_before_action :verify_authenticity_token
     skip_before_action :check_xhr, only: [:index, :users]
+    skip_before_action :preload_json, only: [:index, :users]
     skip_before_action :redirect_to_login_if_required, only: [:index, :users]
     
     def index
@@ -142,6 +144,7 @@ after_initialize do
       require 'uri'
       require 'json'
       
+      # Construir la URL de manera más segura
       uri = URI(url)
       request_uri = URI(uri.to_s)
       http = Net::HTTP.new(request_uri.host, request_uri.port)
@@ -151,6 +154,7 @@ after_initialize do
       request = Net::HTTP::Get.new(request_uri)
       request['Api-Key'] = api_key
       request['Api-Username'] = api_username
+      request['Content-Type'] = 'application/json'
       
       response_http = http.request(request)
       
