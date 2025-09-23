@@ -94,8 +94,9 @@
                 </div>
                 <div class="user-info">
                   <div class="user-name">{{user.firstname}} {{user.lastname}}</div>
-                  <div class="user-username">@{{user.username}}</div>
-                  <div class="user-email">{{user.email}}</div>
+                  <div class="user-username">
+                    <a href="https://discourse.youth-care.eu/u/{{user.username}}" target="_blank" class="user-link">@{{user.username}}</a>
+                  </div>
                   <div class="user-location">Location: {{user.location}}</div>
                   <div class="user-trust-level">Trust level: {{user.trust_level}}</div>
                 </div>
@@ -428,6 +429,17 @@
   font-size: 0.85em;
   font-weight: 500;
   margin-bottom: 3px;
+}
+
+.user-link {
+  color: #0084ff;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.user-link:hover {
+  color: #0056b3;
+  text-decoration: underline;
 }
 
 .user-location {

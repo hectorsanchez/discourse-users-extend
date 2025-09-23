@@ -10,8 +10,8 @@ after_initialize do
     skip_before_action :redirect_to_login_if_required, only: [:index, :users]
     
     def index
-      # Página principal - renderizar HTML directamente
-      render html: '<div id="main-outlet-wrapper"></div>'.html_safe, layout: 'application'
+      # Main page - render with proper layout
+      render layout: 'application'
     end
     
     def users
