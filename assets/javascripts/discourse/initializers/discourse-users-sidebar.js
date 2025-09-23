@@ -40,22 +40,10 @@ function showDiscourseUsersInterface() {
     return;
   }
 
-  // Hide ALL Discourse content completely
+  // Hide main Discourse content
   const mainOutlet = document.getElementById('main-outlet');
   if (mainOutlet) {
     mainOutlet.style.display = 'none';
-  }
-  
-  // Hide the entire main container to prevent any Discourse content from showing
-  const mainContainer = document.querySelector('.container, #main, .wrap');
-  if (mainContainer) {
-    mainContainer.style.display = 'none';
-  }
-  
-  // Hide any Discourse navigation or sidebar content
-  const discourseContent = document.querySelector('.contents, .topic-list, .topic-list-container, .list-container');
-  if (discourseContent) {
-    discourseContent.style.display = 'none';
   }
 
   // Create interface with inline CSS
@@ -124,10 +112,15 @@ function showDiscourseUsersInterface() {
     </div>
   `;
 
-  // Insert into main container
-  const mainOutletWrapper = document.getElementById('main-outlet-wrapper');
-  if (mainOutletWrapper) {
-    mainOutletWrapper.appendChild(discourseInterface);
+  // Replace main-outlet content completely
+  const mainOutlet = document.getElementById('main-outlet');
+  if (mainOutlet) {
+    // Clear existing content
+    mainOutlet.innerHTML = '';
+    // Add our interface
+    mainOutlet.appendChild(discourseInterface);
+    // Show main-outlet
+    mainOutlet.style.display = 'block';
   }
 
   // Load users
@@ -145,28 +138,15 @@ function hideDiscourseUsersInterface() {
       discourseInterface.remove();
     }
     
-    // Restore ALL Discourse content
+    // Restore main Discourse content
     const mainOutlet = document.getElementById('main-outlet');
     if (mainOutlet) {
       mainOutlet.style.display = 'block';
-    }
-    
-    // Restore main container
-    const mainContainer = document.querySelector('.container, #main, .wrap');
-    if (mainContainer) {
-      mainContainer.style.display = 'block';
-    }
-    
-    // Restore Discourse content
-    const discourseContent = document.querySelector('.contents, .topic-list, .topic-list-container, .list-container');
-    if (discourseContent) {
-      discourseContent.style.display = 'block';
-    }
-    
-    // Force refresh if necessary
-    if (mainOutlet && mainOutlet.children.length === 0) {
-      // If main-outlet is empty, Discourse may need to reload
-      window.location.reload();
+      // Force refresh if necessary
+      if (mainOutlet.children.length === 0) {
+        // If main-outlet is empty, Discourse may need to reload
+        window.location.reload();
+      }
     }
   } catch (e) {
     console.warn('Error hiding Discourse interface:', e);
