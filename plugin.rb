@@ -45,40 +45,60 @@ after_initialize do
           directory_data = JSON.parse(directory_response[:body])
           users = directory_data['directory_items'].map { |item| item['user'] }
           
-          # Procesar usuarios
+          # Procesar usuarios de forma más simple
           processed_users = users.map do |user|
-            # Obtener perfil completo del usuario
-            user_url = "#{discourse_url}/users/#{user['username']}.json"
-            user_response = make_api_request(user_url, api_key, api_username)
-            
-            if user_response[:status_code] == 200
-              user_data = JSON.parse(user_response[:body])['user']
-              location = user_data['location']
+            begin
+              # Obtener perfil completo del usuario
+              user_url = "#{discourse_url}/users/#{user['username']}.json"
+              user_response = make_api_request(user_url, api_key, api_username)
               
-              country = if location.present?
-                if location.include?(',')
-                  location.split(',').last.strip
-                else
-                  location
+              if user_response[:status_code] == 200
+                user_data = JSON.parse(user_response[:body])['user']
+                location = user_data['location'] || ""
+                
+                # Extraer país de forma más robusta
+                country = "Sin país"
+                if location.present?
+                  if location.include?(',')
+                    country = location.split(',').last.strip
+                  else
+                    country = location.strip
+                  end
                 end
+                
+                # Dividir nombre de forma más segura
+                name_parts = (user_data['name'] || "").split(' ')
+                firstname = name_parts.first || user_data['username']
+                lastname = name_parts.drop(1).join(' ') || ""
+                
+                {
+                  firstname: firstname,
+                  lastname: lastname,
+                  email: user_data['email'],
+                  username: user_data['username'],
+                  location: location,
+                  country: country,
+                  trust_level: user_data['trust_level'],
+                  avatar_template: user_data['avatar_template']
+                }
               else
-                "Sin país"
+                # Fallback con datos básicos
+                {
+                  firstname: user['username'],
+                  lastname: "",
+                  email: nil,
+                  username: user['username'],
+                  location: nil,
+                  country: "Sin país",
+                  trust_level: user['trust_level'],
+                  avatar_template: user['avatar_template']
+                }
               end
-              
+            rescue => e
+              # En caso de error, usar datos básicos
               {
-                firstname: user_data['name']&.split(' ')&.first || user_data['username'],
-                lastname: user_data['name']&.split(' ')&.drop(1)&.join(' ') || '',
-                email: user_data['email'],
-                username: user_data['username'],
-                location: location,
-                country: country,
-                trust_level: user_data['trust_level'],
-                avatar_template: user_data['avatar_template']
-              }
-            else
-              {
-                firstname: user['name']&.split(' ')&.first || user['username'],
-                lastname: user['name']&.split(' ')&.drop(1)&.join(' ') || '',
+                firstname: user['username'],
+                lastname: "",
                 email: nil,
                 username: user['username'],
                 location: nil,
