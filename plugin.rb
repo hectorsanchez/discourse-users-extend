@@ -28,10 +28,14 @@ after_initialize do
       end
 
       begin
-        # Get list of users from directory
-        # The directory_items.json endpoint doesn't accept the 'limit' parameter
-        # We use standard parameters: order, period, asc
-        directory_url = "#{discourse_url}/directory_items.json?order=created&period=all&asc=true"
+        # Get list of users from directory - construct URL safely like Moodle plugin
+        base_uri = URI("#{discourse_url}/directory_items.json")
+        base_uri.query = URI.encode_www_form({
+          'order' => 'created',
+          'period' => 'all',
+          'asc' => 'true'
+        })
+        directory_url = base_uri.to_s
         
         directory_response = make_api_request(directory_url, api_key, api_username)
         
@@ -43,8 +47,9 @@ after_initialize do
           processed_users = []
           users.each do |user|
             begin
-              # Get complete user profile
-              user_url = "#{discourse_url}/users/#{user['username']}.json"
+              # Get complete user profile - construct URL safely
+              user_uri = URI("#{discourse_url}/users/#{user['username']}.json")
+              user_url = user_uri.to_s
               user_response = make_api_request(user_url, api_key, api_username)
               
               if user_response[:status_code] == 200
@@ -153,7 +158,7 @@ after_initialize do
       require 'uri'
       require 'json'
       
-      # Construir la URL de manera más segura
+      # Construir la URL de manera más segura como el plugin de Moodle
       uri = URI(url)
       request_uri = URI(uri.to_s)
       http = Net::HTTP.new(request_uri.host, request_uri.port)
@@ -164,6 +169,7 @@ after_initialize do
       request['Api-Key'] = api_key
       request['Api-Username'] = api_username
       request['Content-Type'] = 'application/json'
+      request['Accept'] = 'application/json'
       
       response_http = http.request(request)
       
