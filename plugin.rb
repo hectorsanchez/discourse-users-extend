@@ -6,16 +6,15 @@
 after_initialize do
   # Controlador simple sin Engine
   class ::DiscourseUsersController < ::ApplicationController
-    skip_before_action :check_xhr, only: [:index, :users, :debug, :test]
-    skip_before_action :redirect_to_login_if_required, only: [:index, :users, :debug, :test]
+    skip_before_action :check_xhr, only: [:index, :users]
+    skip_before_action :redirect_to_login_if_required, only: [:index, :users]
     
     def index
-      # Página principal - renderizar vista simple
-      render 'discourse_users/index', layout: 'application'
+      # Página principal - renderizar HTML directamente
+      render html: '<div id="main-outlet-wrapper"></div>'.html_safe, layout: 'application'
     end
     
     def users
-      # Devolver datos reales de la API con logging detallado
       response.headers['Content-Type'] = 'application/json'
       response.headers['Access-Control-Allow-Origin'] = '*'
       
@@ -23,14 +22,8 @@ after_initialize do
       api_username = SiteSetting.dmu_discourse_api_username
       discourse_url = SiteSetting.dmu_discourse_api_url
       
-      Rails.logger.info "=== DISCOURSE USERS DEBUG ==="
-      Rails.logger.info "API Key present: #{!api_key.blank?}"
-      Rails.logger.info "API Username present: #{!api_username.blank?}"
-      Rails.logger.info "Discourse URL: #{discourse_url}"
-      
       if api_key.blank? || discourse_url.blank?
-        Rails.logger.error "API configuration missing"
-        render json: { error: "API Key y URL de Discourse no configurados correctamente." }, status: 400
+        render json: { error: "API Key and Discourse URL not configured properly." }, status: 400
         return
       end
 
@@ -39,36 +32,27 @@ after_initialize do
         # El endpoint directory_items.json no acepta el parámetro 'limit'
         # Usamos los parámetros estándar: order, period, asc
         directory_url = "#{discourse_url}/directory_items.json?order=created&period=all&asc=true"
-        Rails.logger.info "Fetching directory from: #{directory_url}"
         
         directory_response = make_api_request(directory_url, api_key, api_username)
-        Rails.logger.info "Directory response status: #{directory_response[:status_code]}"
         
         if directory_response[:status_code] == 200
           directory_data = JSON.parse(directory_response[:body])
           users = directory_data['directory_items'].map { |item| item['user'] }
-          Rails.logger.info "Found #{users.length} users in directory"
           
-          # Procesar usuarios de forma más simple
+          # Process users
           processed_users = []
-          users.each_with_index do |user, index|
-            Rails.logger.info "Processing user #{index + 1}/#{users.length}: #{user['username']}"
-            
+          users.each do |user|
             begin
-              # Obtener perfil completo del usuario
+              # Get complete user profile
               user_url = "#{discourse_url}/users/#{user['username']}.json"
               user_response = make_api_request(user_url, api_key, api_username)
-              
-              Rails.logger.info "User #{user['username']} response status: #{user_response[:status_code]}"
               
               if user_response[:status_code] == 200
                 user_data = JSON.parse(user_response[:body])['user']
                 location = user_data['location'] || ""
                 
-                Rails.logger.info "User #{user['username']} location: '#{location}'"
-                
-                # Extraer país de forma más robusta
-                country = "Sin país"
+                # Extract country
+                country = "No country"
                 if location.present?
                   if location.include?(',')
                     country = location.split(',').last.strip
@@ -77,9 +61,7 @@ after_initialize do
                   end
                 end
                 
-                Rails.logger.info "User #{user['username']} country: '#{country}'"
-                
-                # Dividir nombre de forma más segura
+                # Split name safely
                 name_parts = (user_data['name'] || "").split(' ')
                 firstname = name_parts.first || user_data['username']
                 lastname = name_parts.drop(1).join(' ') || ""
@@ -96,33 +78,29 @@ after_initialize do
                 }
                 
                 processed_users << processed_user
-                Rails.logger.info "Successfully processed user: #{user['username']}"
               else
-                Rails.logger.warn "Failed to get user #{user['username']}, using fallback"
-                # Fallback con datos básicos
+                # Fallback with basic data
                 processed_user = {
                   firstname: user['username'],
                   lastname: "",
                   email: nil,
                   username: user['username'],
                   location: nil,
-                  country: "Sin país",
+                  country: "No country",
                   trust_level: user['trust_level'],
                   avatar_template: user['avatar_template']
                 }
                 processed_users << processed_user
               end
             rescue => e
-              Rails.logger.error "Error processing user #{user['username']}: #{e.message}"
-              Rails.logger.error e.backtrace.join("\n")
-              # En caso de error, usar datos básicos
+              # In case of error, use basic data
               processed_user = {
                 firstname: user['username'],
                 lastname: "",
                 email: nil,
                 username: user['username'],
                 location: nil,
-                country: "Sin país",
+                country: "No country",
                 trust_level: user['trust_level'],
                 avatar_template: user['avatar_template']
               }
@@ -130,116 +108,10 @@ after_initialize do
             end
           end
           
-          Rails.logger.info "Processed #{processed_users.length} users total"
-          
-          # Agrupar por país
+          # Group by country
           grouped = processed_users.group_by { |u| u[:country] }
-          Rails.logger.info "Grouped by countries: #{grouped.keys}"
 
           render json: grouped
-        else
-          Rails.logger.error "Directory request failed: #{directory_response}"
-          render json: { error: "Failed to get directory", response: directory_response }
-        end
-      rescue => e
-        Rails.logger.error "General error in users method: #{e.message}"
-        Rails.logger.error e.backtrace.join("\n")
-        render json: { error: "Error: #{e.message}", backtrace: e.backtrace }
-      end
-    end
-
-    def test
-      # Endpoint de prueba ultra simple
-      render plain: "TEST WORKS"
-    end
-
-
-    def debug
-      # Endpoint temporal para debug - ver qué datos devuelve la API
-      response.headers['Content-Type'] = 'application/json'
-      response.headers['Access-Control-Allow-Origin'] = '*'
-      
-      # Permitir a todos los usuarios para debug
-      # return render json: { error: "Unauthorized" }, status: 401 unless current_user&.admin?
-      
-      api_key = SiteSetting.dmu_discourse_api_key
-      api_username = SiteSetting.dmu_discourse_api_username
-      discourse_url = SiteSetting.dmu_discourse_api_url
-      
-      if api_key.blank? || discourse_url.blank?
-        render json: { error: "API Key y URL de Discourse no configurados correctamente." }, status: 400
-          return
-        end
-        
-      # Simular el procesamiento completo como en el método users
-      begin
-        # Obtener lista de usuarios del directorio
-        # El endpoint directory_items.json no acepta el parámetro 'limit'
-        directory_url = "#{discourse_url}/directory_items.json?order=created&period=all&asc=true"
-        directory_response = make_api_request(directory_url, api_key, api_username)
-        
-        if directory_response[:status_code] == 200
-          directory_data = JSON.parse(directory_response[:body])
-          users = directory_data['directory_items'].map { |item| item['user'] }
-          
-          # Procesar usuarios como en el método real
-          processed_users = users.map do |user|
-            # Obtener perfil completo del usuario
-            user_url = "#{discourse_url}/users/#{user['username']}.json"
-            user_response = make_api_request(user_url, api_key, api_username)
-            
-            if user_response[:status_code] == 200
-              user_data = JSON.parse(user_response[:body])['user']
-              location = user_data['location']
-              
-              country = if location.present?
-                if location.include?(',')
-                  location.split(',').last.strip
-                else
-                  location
-                end
-              else
-                "Sin país"
-              end
-              
-              {
-                username: user_data['username'],
-                name: user_data['name'],
-                email: user_data['email'],
-                location: location,
-                country: country,
-                trust_level: user_data['trust_level'],
-                avatar_template: user_data['avatar_template']
-              }
-            else
-              {
-                username: user['username'],
-                name: user['name'],
-                location: nil,
-                country: "Sin país",
-                trust_level: user['trust_level'],
-                avatar_template: user['avatar_template']
-              }
-            end
-          end
-          
-          # Agrupar por país
-          grouped = processed_users.group_by { |u| u[:country] }
-
-        render json: { 
-            total_users: processed_users.length,
-            processed_users: processed_users,
-            grouped_by_country: grouped,
-            countries: grouped.keys,
-            sample_processing: {
-              original_user: users.first,
-              processed_user: processed_users.first,
-              location_extraction: {
-                original_location: processed_users.first[:location],
-                extracted_country: processed_users.first[:country]
-              }
-            }
-          }
         else
           render json: { error: "Failed to get directory", response: directory_response }
         end
@@ -289,8 +161,6 @@ after_initialize do
   Discourse::Application.routes.append do
     get '/discourse/users' => 'discourse_users#index'
     get '/discourse/users/api' => 'discourse_users#users'
-    get '/discourse/debug' => 'discourse_users#debug'
-    get '/discourse/test' => 'discourse_users#test'
     post '/discourse/save_settings' => 'discourse_users#save_settings'
   end
 end

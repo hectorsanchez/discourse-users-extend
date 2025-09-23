@@ -51,21 +51,21 @@ function showDiscourseUsersInterface() {
       <!-- Header con estadísticas -->
       <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 1px solid var(--primary-low);">
         <div>
-          <h1 style="font-size: 2em; font-weight: 600; margin: 0 0 15px 0; color: var(--primary);">👥 Usuarios de Discourse</h1>
+          <h1 style="font-size: 2em; font-weight: 600; margin: 0 0 15px 0; color: var(--primary);">👥 Discourse Users</h1>
           <div style="display: flex; gap: 20px; flex-wrap: wrap;">
             <span style="display: flex; flex-direction: column; align-items: center; text-align: center;">
               <span id="totalUsers" style="font-size: 1.5em; font-weight: 600; color: var(--primary);">-</span>
-              <span style="font-size: 0.9em; color: var(--primary-medium); margin-top: 5px;">usuarios</span>
+              <span style="font-size: 0.9em; color: var(--primary-medium); margin-top: 5px;">users</span>
             </span>
             <span style="display: flex; flex-direction: column; align-items: center; text-align: center;">
               <span id="totalCountries" style="font-size: 1.5em; font-weight: 600; color: var(--primary);">-</span>
-              <span style="font-size: 0.9em; color: var(--primary-medium); margin-top: 5px;">países</span>
+              <span style="font-size: 0.9em; color: var(--primary-medium); margin-top: 5px;">countries</span>
             </span>
           </div>
         </div>
         <div>
           <button id="refreshButton" style="background: var(--primary); color: var(--secondary); border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
-            🔄 Actualizar
+            🔄 Refresh
           </button>
         </div>
       </div>
@@ -74,25 +74,25 @@ function showDiscourseUsersInterface() {
       <div style="background: var(--highlight-low); padding: 20px; border-radius: 4px; margin-bottom: 30px;">
         <div style="display: flex; gap: 20px; align-items: end; flex-wrap: wrap;">
           <div style="display: flex; flex-direction: column; gap: 8px;">
-            <label style="font-weight: 600; font-size: 0.9em; color: var(--primary);">Filtrar por país:</label>
+            <label style="font-weight: 600; font-size: 0.9em; color: var(--primary);">Filter by country:</label>
             <select id="countryFilter" style="padding: 8px 12px; border: 1px solid var(--primary-low); border-radius: 4px; font-size: 14px; min-width: 200px; background: var(--secondary); color: var(--primary);">
-              <option value="all">Todos los países</option>
+              <option value="all">All countries</option>
             </select>
           </div>
           
           <div style="display: flex; flex-direction: column; gap: 8px;">
-            <label style="font-weight: 600; font-size: 0.9em; color: var(--primary);">Buscar usuario:</label>
+            <label style="font-weight: 600; font-size: 0.9em; color: var(--primary);">Search user:</label>
             <input 
               type="text" 
               id="searchInput"
-              placeholder="Nombre, apellido, email o username..."
+              placeholder="First name, last name, email or username..."
               style="padding: 8px 12px; border: 1px solid var(--primary-low); border-radius: 4px; font-size: 14px; min-width: 200px; background: var(--secondary); color: var(--primary);"
             />
           </div>
           
           <div style="display: flex; flex-direction: column; gap: 8px;">
             <button id="clearFiltersButton" style="background: var(--primary-medium); color: var(--secondary); border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
-              🗑️ Limpiar filtros
+              🗑️ Clear filters
             </button>
           </div>
         </div>
@@ -102,7 +102,7 @@ function showDiscourseUsersInterface() {
       <div id="usersContent" style="display: flex; flex-direction: column; gap: 20px;">
         <div style="text-align: center; padding: 60px 20px; color: var(--primary-medium);">
           <div style="font-size: 3em; margin-bottom: 20px;">⏳</div>
-          <p>Cargando usuarios de Discourse...</p>
+          <p>Loading Discourse users...</p>
         </div>
       </div>
     </div>
@@ -188,13 +188,13 @@ async function loadDiscourseUsers() {
       displayUsers(allUsers);
     } else {
       console.error("Error response or unexpected data format:", data);
-      showError(data.error || 'Error al cargar usuarios');
+      showError(data.error || 'Error loading users');
     }
   } catch (error) {
     console.error("=== SIDEBAR DEBUG - ERROR ===");
     console.error("Error:", error);
     console.error("Error message:", error.message);
-    showError('Error de conexión: ' + error.message);
+    showError('Connection error: ' + error.message);
   }
 }
 
@@ -210,12 +210,12 @@ function populateCountryFilter() {
   const select = document.getElementById('countryFilter');
   if (!select) return;
   
-  select.innerHTML = '<option value="all">Todos los países</option>';
+  select.innerHTML = '<option value="all">All countries</option>';
   
   allCountries.forEach(country => {
     const option = document.createElement('option');
     option.value = country;
-    option.textContent = country === 'Sin país' ? '🌍 Sin país especificado' : country;
+    option.textContent = country === 'No country' ? '🌍 No country specified' : country;
     select.appendChild(option);
   });
 }
@@ -267,8 +267,8 @@ function displayUsers(users) {
     content.innerHTML = `
       <div style="text-align: center; padding: 60px 20px; color: var(--primary-medium);">
         <div style="font-size: 4em; margin-bottom: 20px;">🔍</div>
-        <h3 style="margin: 0 0 10px 0; color: var(--primary);">No se encontraron usuarios</h3>
-        <p style="margin: 0; font-size: 1.1em;">Intenta ajustar los filtros o busca con otros términos.</p>
+        <h3 style="margin: 0 0 10px 0; color: var(--primary);">No users found</h3>
+        <p style="margin: 0; font-size: 1.1em;">Try adjusting the filters or search with different terms.</p>
       </div>
     `;
     return;
@@ -285,13 +285,13 @@ function displayUsers(users) {
       return;
     }
     
-    const countryDisplay = country === 'Sin país' ? '🌍 Sin país especificado' : country;
+    const countryDisplay = country === 'No country' ? '🌍 No country specified' : country;
     
     html += `
       <div style="background: var(--secondary); border: 1px solid var(--primary-low); border-radius: 4px; overflow: hidden;">
         <div style="display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; background: var(--highlight-low); border-bottom: 1px solid var(--primary-low);">
           <h3 style="font-size: 1.2em; font-weight: 600; margin: 0; color: var(--primary);">${countryDisplay}</h3>
-          <span style="background: var(--primary); color: var(--secondary); padding: 4px 10px; border-radius: 12px; font-size: 0.9em; font-weight: 600;">${countryUsers.length} usuarios</span>
+          <span style="background: var(--primary); color: var(--secondary); padding: 4px 10px; border-radius: 12px; font-size: 0.9em; font-weight: 600;">${countryUsers.length} users</span>
         </div>
         
         <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px; padding: 20px;">
@@ -309,8 +309,8 @@ function displayUsers(users) {
                 <div style="font-weight: 600; margin-bottom: 3px; font-size: 1.1em; color: var(--primary);">${user.firstname} ${user.lastname}</div>
                 <div style="color: var(--primary); font-size: 0.85em; font-weight: 500; margin-bottom: 3px;">@${user.username}</div>
                 <div style="color: var(--primary-medium); font-size: 0.9em; word-break: break-all; margin-bottom: 3px;">${user.email}</div>
-                <div style="color: var(--primary-medium); font-size: 0.85em; font-weight: 500; margin-bottom: 3px;">Ubicación: ${user.location || user.country}</div>
-                <div style="color: var(--primary-low); font-size: 0.8em;">Nivel: ${user.trust_level}</div>
+                <div style="color: var(--primary-medium); font-size: 0.85em; font-weight: 500; margin-bottom: 3px;">Location: ${user.location || user.country}</div>
+                <div style="color: var(--primary-low); font-size: 0.8em;">Level: ${user.trust_level}</div>
               </div>
             </div>
           `).join('')}
