@@ -4,25 +4,25 @@ export default {
   name: "discourse-users-sidebar",
   initialize() {
     withPluginApi("0.8.31", api => {
-      // Agregar enlace al sidebar
+      // Add link to sidebar
       //api.addCommunitySectionLink({
       //  name: "discourse-users",
       //  route: "discovery.latest",
-      //  title: "Ver usuarios de Discourse agrupados por país",
+      //  title: "View Discourse users grouped by country",
       //  text: "Discourse Users",
       //  icon: "users"
       //});
 
-      // Interceptar el click en el enlace del sidebar
+      // Intercept click on sidebar link
       api.onPageChange(() => {
-        // Solo procesar si estamos en las páginas específicas
+        // Only process if we're on specific pages
         const currentPath = window.location.pathname;
         const isDiscourseUsersPage = currentPath === "/discourse/users";
         
         if (isDiscourseUsersPage) {
           showDiscourseUsersInterface();
         } else {
-          // Si no estamos en las páginas de usuarios, asegurar que la interfaz esté oculta
+          // If we're not on user pages, ensure the interface is hidden
           hideDiscourseUsersInterface();
         }
       });
@@ -31,24 +31,24 @@ export default {
 };
 
 function showDiscourseUsersInterface() {
-  // Verificar si ya existe la interfaz
+  // Check if interface already exists
   if (document.querySelector('.discourse-users-interface')) {
     return;
   }
 
-  // Ocultar el contenido principal de Discourse
+  // Hide main Discourse content
   const mainOutlet = document.getElementById('main-outlet');
   if (mainOutlet) {
     mainOutlet.style.display = 'none';
   }
 
-  // Crear la interfaz con CSS inline
+  // Create interface with inline CSS
   const discourseInterface = document.createElement('div');
   discourseInterface.className = 'discourse-users-interface';
   
   discourseInterface.innerHTML = `
     <div style="max-width: 1200px; margin: 0 auto; padding: 20px;">
-      <!-- Header con estadísticas -->
+      <!-- Header with statistics -->
       <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 1px solid var(--primary-low);">
         <div>
           <h1 style="font-size: 2em; font-weight: 600; margin: 0 0 15px 0; color: var(--primary);">👥 Discourse Users</h1>
@@ -70,7 +70,7 @@ function showDiscourseUsersInterface() {
         </div>
       </div>
 
-      <!-- Filtros -->
+      <!-- Filters -->
       <div style="background: var(--highlight-low); padding: 20px; border-radius: 4px; margin-bottom: 30px;">
         <div style="display: flex; gap: 20px; align-items: end; flex-wrap: wrap;">
           <div style="display: flex; flex-direction: column; gap: 8px;">
@@ -98,7 +98,7 @@ function showDiscourseUsersInterface() {
         </div>
       </div>
 
-      <!-- Lista de usuarios -->
+      <!-- Users list -->
       <div id="usersContent" style="display: flex; flex-direction: column; gap: 20px;">
         <div style="text-align: center; padding: 60px 20px; color: var(--primary-medium);">
           <div style="font-size: 3em; margin-bottom: 20px;">⏳</div>
@@ -108,40 +108,40 @@ function showDiscourseUsersInterface() {
     </div>
   `;
 
-  // Insertar en el contenedor principal
+  // Insert into main container
   const mainOutletWrapper = document.getElementById('main-outlet-wrapper');
   if (mainOutletWrapper) {
     mainOutletWrapper.appendChild(discourseInterface);
   }
 
-  // Cargar usuarios
+  // Load users
   loadDiscourseUsers();
 
-  // Agregar event listeners
+  // Add event listeners
   addEventListeners();
 }
 
 function hideDiscourseUsersInterface() {
   try {
-    // Ocultar la interfaz de Discourse si existe
+    // Hide Discourse interface if it exists
     const discourseInterface = document.querySelector('.discourse-users-interface');
     if (discourseInterface && discourseInterface.parentNode) {
       discourseInterface.remove();
     }
     
-    // Restaurar el contenido principal de Discourse
+    // Restore main Discourse content
     const mainOutlet = document.getElementById('main-outlet');
     if (mainOutlet) {
       mainOutlet.style.display = 'block';
-      // Forzar un refresh del contenido si es necesario
+      // Force refresh if necessary
       if (mainOutlet.children.length === 0) {
-        // Si el main-outlet está vacío, Discourse puede necesitar recargar
+        // If main-outlet is empty, Discourse may need to reload
         window.location.reload();
       }
     }
   } catch (e) {
-    console.warn('Error al ocultar interfaz de Discourse:', e);
-    // En caso de error, asegurar que el contenido principal esté visible
+    console.warn('Error hiding Discourse interface:', e);
+    // In case of error, ensure main content is visible
     const mainOutlet = document.getElementById('main-outlet');
     if (mainOutlet) {
       mainOutlet.style.display = 'block';
@@ -149,7 +149,7 @@ function hideDiscourseUsersInterface() {
   }
 }
 
-// Variables globales para el estado
+// Global variables for state
 let allUsers = {};
 let allCountries = [];
 
@@ -352,25 +352,25 @@ function showError(message) {
 }
 
 function addEventListeners() {
-  // Botón de actualizar
+  // Refresh button
   const refreshButton = document.getElementById('refreshButton');
   if (refreshButton) {
     refreshButton.addEventListener('click', loadDiscourseUsers);
   }
   
-  // Filtro de país
+  // Country filter
   const countryFilter = document.getElementById('countryFilter');
   if (countryFilter) {
     countryFilter.addEventListener('change', filterUsers);
   }
   
-  // Campo de búsqueda
+  // Search field
   const searchInput = document.getElementById('searchInput');
   if (searchInput) {
     searchInput.addEventListener('input', filterUsers);
   }
   
-  // Botón de limpiar filtros
+  // Clear filters button
   const clearFiltersButton = document.getElementById('clearFiltersButton');
   if (clearFiltersButton) {
     clearFiltersButton.addEventListener('click', clearFilters);

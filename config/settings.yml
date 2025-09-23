@@ -4,7 +4,7 @@ plugin:
   dmu_enabled:
     default: true
     type: "bool"
-    description: "Habilitar el plugin de usuarios de Discourse"
+    description: "Enable the Discourse users plugin"
 
   dmu_discourse_api_key:
     default: ""

@@ -2,18 +2,18 @@
 
 {{discourse-api-settings}}
 
-<h2>Configuración de la API de Discourse</h2>
+<h2>Discourse API Configuration</h2>
 <div>
-  <label>API Key de autenticación para la API de Discourse</label>
-  {{input value=dmu_discourse_api_key placeholder="API Key de autenticación para la API de Discourse"}}
+  <label>API Key for Discourse API authentication</label>
+  {{input value=dmu_discourse_api_key placeholder="API Key for Discourse API authentication"}}
 </div>
 <div>
-  <label>Usuario para la autenticación de la API</label>
+  <label>User for API authentication</label>
   {{input value=dmu_discourse_api_username placeholder="system"}}
 </div>
 <div>
-  <label>URL del servidor Discourse para la API</label>
+  <label>Discourse server URL for API</label>
   {{input value=dmu_discourse_api_url placeholder="https://discourse.youth-care.eu"}}
 </div>
-<button class="btn btn-primary" {{action "saveSettings"}}>Guardar</button>
+<button class="btn btn-primary" {{action "saveSettings"}}>Save</button>
 

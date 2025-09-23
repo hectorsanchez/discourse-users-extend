@@ -24,12 +24,12 @@ export default Component.extend({
 
     let filtered = { ...this.users };
 
-    // Filtrar por país
+    // Filter by country
     if (this.selectedCountry !== "all") {
       filtered = { [this.selectedCountry]: filtered[this.selectedCountry] || {} };
     }
 
-    // Filtrar por término de búsqueda
+    // Filter by search term
     if (this.searchTerm) {
       const searchLower = this.searchTerm.toLowerCase();
       Object.keys(filtered).forEach(country => {
@@ -44,7 +44,7 @@ export default Component.extend({
       });
     }
 
-    // Eliminar países vacíos
+    // Remove empty countries
     Object.keys(filtered).forEach(country => {
       if (filtered[country].length === 0) {
         delete filtered[country];
@@ -81,14 +81,14 @@ export default Component.extend({
         console.log("Response type:", typeof response);
         console.log("Response keys:", Object.keys(response || {}));
         
-        // El endpoint devuelve directamente el objeto agrupado por países
+        // The endpoint returns directly the object grouped by countries
         if (response && typeof response === 'object') {
           console.log("Setting users data:", response);
           this.set("users", response);
           console.log("Users set successfully");
         } else {
           console.error("Invalid response format:", response);
-          this.set("error", "Formato de respuesta inválido");
+          this.set("error", "Invalid response format");
         }
       })
       .catch(error => {
@@ -97,7 +97,7 @@ export default Component.extend({
         console.error("Error message:", error.message);
         console.error("Error status:", error.status);
         console.error("Error response:", error.response);
-        this.set("error", error.message || "Error al cargar usuarios");
+        this.set("error", error.message || "Error loading users");
       })
       .finally(() => {
         console.log("=== FRONTEND DEBUG - LOADING COMPLETE ===");

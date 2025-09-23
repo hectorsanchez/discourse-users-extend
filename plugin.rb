@@ -1,5 +1,5 @@
 # name: discourse-users-extend
-# about: Plugin para mostrar usuarios de Discourse y agruparlos por país.
+# about: Plugin to display Discourse users and group them by country.
 # version: 0.1
 # authors: Héctor Sanchez
 
@@ -28,9 +28,9 @@ after_initialize do
       end
 
       begin
-        # Obtener lista de usuarios del directorio
-        # El endpoint directory_items.json no acepta el parámetro 'limit'
-        # Usamos los parámetros estándar: order, period, asc
+        # Get list of users from directory
+        # The directory_items.json endpoint doesn't accept the 'limit' parameter
+        # We use standard parameters: order, period, asc
         directory_url = "#{discourse_url}/directory_items.json?order=created&period=all&asc=true"
         
         directory_response = make_api_request(directory_url, api_key, api_username)

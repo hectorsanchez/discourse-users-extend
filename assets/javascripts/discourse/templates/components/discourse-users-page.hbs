@@ -2,21 +2,21 @@
   <!-- Header con estadísticas -->
   <div class="page-header">
     <div class="page-header-content">
-      <h1 class="page-title">👥 Usuarios de Discourse</h1>
+      <h1 class="page-title">👥 Discourse Users</h1>
       <div class="page-header-stats">
         <span class="stat-item">
           <span class="stat-number">{{totalFilteredUsers}}</span>
-          <span class="stat-label">usuarios</span>
+          <span class="stat-label">users</span>
         </span>
         <span class="stat-item">
           <span class="stat-number">{{totalCountries}}</span>
-          <span class="stat-label">países</span>
+          <span class="stat-label">countries</span>
         </span>
       </div>
     </div>
     <div class="page-header-actions">
       <button class="btn btn-primary" {{action "loadUsers"}}>
-        🔄 Actualizar
+        🔄 Refresh
       </button>
     </div>
   </div>
@@ -25,9 +25,9 @@
   <div class="filters-section">
     <div class="filters-row">
       <div class="filter-group">
-        <label class="filter-label">Filtrar por país:</label>
+        <label class="filter-label">Filter by country:</label>
         <select class="filter-select" {{on "change" (action "selectCountry" value="target.value")}}>
-          <option value="all">Todos los países</option>
+          <option value="all">All countries</option>
           {{#each countries as |country|}}
             <option value="{{country}}" selected={{eq selectedCountry country}}>
               {{country}}
@@ -37,11 +37,11 @@
       </div>
       
       <div class="filter-group">
-        <label class="filter-label">Buscar usuario:</label>
+        <label class="filter-label">Search user:</label>
         <input 
           type="text" 
           class="filter-input" 
-          placeholder="Nombre, apellido, email o username..."
+          placeholder="First name, last name, email or username..."
           value={{searchTerm}}
           {{on "input" (action "updateSearchTerm")}}
         />
@@ -49,7 +49,7 @@
       
       <div class="filter-group">
         <button class="btn btn-secondary" {{action "clearFilters"}}>
-          🗑️ Limpiar filtros
+          🗑️ Clear filters
         </button>
       </div>
     </div>
@@ -60,7 +60,7 @@
     {{#if loading}}
       <div class="loading">
         <div class="loading-spinner">⏳</div>
-        <p>Cargando usuarios de Discourse...</p>
+        <p>Loading Discourse users...</p>
       </div>
     {{else if error}}
       <div class="error-message">
@@ -73,13 +73,13 @@
         <div class="country-section">
           <div class="country-header">
             <h3 class="country-name">
-              {{#if (eq country "Sin país")}}
-                🌍 Sin país especificado
+              {{#if (eq country "No country")}}
+                🌍 No country specified
               {{else}}
                 {{country}}
               {{/if}}
             </h3>
-            <span class="country-count">{{countryUsers.length}} usuarios</span>
+            <span class="country-count">{{countryUsers.length}} users</span>
           </div>
           
           <div class="users-grid">
@@ -96,8 +96,8 @@
                   <div class="user-name">{{user.firstname}} {{user.lastname}}</div>
                   <div class="user-username">@{{user.username}}</div>
                   <div class="user-email">{{user.email}}</div>
-                  <div class="user-location">Ubicación: {{user.location}}</div>
-                  <div class="user-trust-level">Nivel de confianza: {{user.trust_level}}</div>
+                  <div class="user-location">Location: {{user.location}}</div>
+                  <div class="user-trust-level">Trust level: {{user.trust_level}}</div>
                 </div>
               </div>
             {{/each}}
@@ -107,8 +107,8 @@
     {{else}}
       <div class="no-results">
         <div class="no-results-icon">🔍</div>
-        <h3>No se encontraron usuarios</h3>
-        <p>Intenta ajustar los filtros o busca con otros términos.</p>
+        <h3>No users found</h3>
+        <p>Try adjusting the filters or search with different terms.</p>
       </div>
     {{/if}}
   </div>
