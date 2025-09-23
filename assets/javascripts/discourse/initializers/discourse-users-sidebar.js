@@ -175,7 +175,7 @@ async function loadDiscourseUsers() {
       updateStats(data);
       populateCountryFilter();
       displayUsers(allUsers);
-    } else if (data && typeof data === 'object' && !data.success) {
+    } else if (data && typeof data === 'object' && !data.success && !data.error) {
       console.log("Direct object response (grouped by country)");
       allUsers = data;
       allCountries = Object.keys(allUsers).sort();
@@ -187,7 +187,7 @@ async function loadDiscourseUsers() {
       populateCountryFilter();
       displayUsers(allUsers);
     } else {
-      console.error("Unexpected data format:", data);
+      console.error("Error response or unexpected data format:", data);
       showError(data.error || 'Error al cargar usuarios');
     }
   } catch (error) {
@@ -233,7 +233,15 @@ function filterUsers() {
   
   Object.keys(allUsers).forEach(country => {
     if (selectedCountry === 'all' || country === selectedCountry) {
-      const countryUsers = allUsers[country].filter(user => 
+      const countryUsers = allUsers[country];
+      
+      // Safety check: ensure countryUsers is an array
+      if (!Array.isArray(countryUsers)) {
+        console.warn(`Country ${country} data is not an array during filtering:`, countryUsers);
+        return;
+      }
+      
+      const filteredCountryUsers = countryUsers.filter(user => 
         (user.firstname && user.firstname.toLowerCase().includes(searchTerm)) ||
         (user.lastname && user.lastname.toLowerCase().includes(searchTerm)) ||
         (user.email && user.email.toLowerCase().includes(searchTerm)) ||
@@ -242,8 +250,8 @@ function filterUsers() {
         (user.location && user.location.toLowerCase().includes(searchTerm))
       );
       
-      if (countryUsers.length > 0) {
-        filteredUsers[country] = countryUsers;
+      if (filteredCountryUsers.length > 0) {
+        filteredUsers[country] = filteredCountryUsers;
       }
     }
   });
@@ -270,6 +278,13 @@ function displayUsers(users) {
   
   Object.keys(users).forEach(country => {
     const countryUsers = users[country];
+    
+    // Safety check: ensure countryUsers is an array
+    if (!Array.isArray(countryUsers)) {
+      console.warn(`Country ${country} data is not an array:`, countryUsers);
+      return;
+    }
+    
     const countryDisplay = country === 'Sin país' ? '🌍 Sin país especificado' : country;
     
     html += `
