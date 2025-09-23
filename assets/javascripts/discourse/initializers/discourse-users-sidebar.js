@@ -17,7 +17,7 @@ export default {
       api.onPageChange(() => {
         // Only process if we're on specific pages
         const currentPath = window.location.pathname;
-        const isDiscourseUsersPage = currentPath === "/discourse/users";
+        const isDiscourseUsersPage = currentPath === "/discourse/users/page";
         
         if (isDiscourseUsersPage) {
           showDiscourseUsersInterface();
@@ -156,8 +156,8 @@ let allCountries = [];
 async function loadDiscourseUsers() {
   console.log("=== SIDEBAR DEBUG - LOADING USERS ===");
   try {
-    console.log("Fetching from /discourse/users/api");
-    const response = await fetch('/discourse/users/api');
+    console.log("Fetching from /discourse/users");
+    const response = await fetch('/discourse/users');
     console.log("Response status:", response.status);
     console.log("Response ok:", response.ok);
     
@@ -167,7 +167,7 @@ async function loadDiscourseUsers() {
     console.log("Data type:", typeof data);
     console.log("Data keys:", Object.keys(data || {}));
     
-    if (data.success) {
+    if (data.success && data.users_by_country) {
       console.log("Success response, using users_by_country");
       allUsers = data.users_by_country;
       allCountries = Object.keys(allUsers).sort();

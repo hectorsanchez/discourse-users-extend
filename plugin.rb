@@ -10,8 +10,120 @@ after_initialize do
     skip_before_action :redirect_to_login_if_required, only: [:index, :users]
     
     def index
-      # Main page - render with proper layout
-      render layout: 'application'
+      # Main page - return JSON data like the working moodle plugin
+      response.headers['Content-Type'] = 'application/json'
+      response.headers['Access-Control-Allow-Origin'] = '*'
+      
+      api_key = SiteSetting.dmu_discourse_api_key
+      api_username = SiteSetting.dmu_discourse_api_username
+      discourse_url = SiteSetting.dmu_discourse_api_url
+      
+      if api_key.blank? || discourse_url.blank?
+        render json: { error: "API Key and Discourse URL not configured properly." }, status: 400
+        return
+      end
+
+      begin
+        # Get list of users from directory
+        # The directory_items.json endpoint doesn't accept the 'limit' parameter
+        # We use standard parameters: order, period, asc
+        directory_url = "#{discourse_url}/directory_items.json?order=created&period=all&asc=true"
+        
+        directory_response = make_api_request(directory_url, api_key, api_username)
+        
+        if directory_response[:status_code] == 200
+          directory_data = JSON.parse(directory_response[:body])
+          users = directory_data['directory_items'].map { |item| item['user'] }
+          
+          # Process users
+          processed_users = []
+          users.each do |user|
+            begin
+              # Get complete user profile
+              user_url = "#{discourse_url}/users/#{user['username']}.json"
+              user_response = make_api_request(user_url, api_key, api_username)
+              
+              if user_response[:status_code] == 200
+                user_data = JSON.parse(user_response[:body])['user']
+                location = user_data['location'] || ""
+                
+                # Extract country
+                country = "No country"
+                if location.present?
+                  if location.include?(',')
+                    country = location.split(',').last.strip
+                  else
+                    country = location.strip
+                  end
+                end
+                
+                # Split name safely
+                name_parts = (user_data['name'] || "").split(' ')
+                firstname = name_parts.first || user_data['username']
+                lastname = name_parts.drop(1).join(' ') || ""
+                
+                processed_user = {
+                  firstname: firstname,
+                  lastname: lastname,
+                  email: user_data['email'],
+                  username: user_data['username'],
+                  location: location,
+                  country: country,
+                  trust_level: user_data['trust_level'],
+                  avatar_template: user_data['avatar_template']
+                }
+                
+                processed_users << processed_user
+              else
+                # Fallback with basic data
+                processed_user = {
+                  firstname: user['username'],
+                  lastname: "",
+                  email: nil,
+                  username: user['username'],
+                  location: nil,
+                  country: "No country",
+                  trust_level: user['trust_level'],
+                  avatar_template: user['avatar_template']
+                }
+                processed_users << processed_user
+              end
+            rescue => e
+              # In case of error, use basic data
+              processed_user = {
+                firstname: user['username'],
+                lastname: "",
+                email: nil,
+                username: user['username'],
+                location: nil,
+                country: "No country",
+                trust_level: user['trust_level'],
+                avatar_template: user['avatar_template']
+              }
+              processed_users << processed_user
+            end
+          end
+          
+          # Group by country
+          grouped = processed_users.group_by { |u| u[:country] }
+
+          render json: { 
+            success: true, 
+            users_by_country: grouped,
+            total_users: processed_users.length,
+            timestamp: Time.current.iso8601
+          }
+        else
+          render json: { error: "Failed to get directory", response: directory_response }
+        end
+      rescue => e
+        render json: { error: "Error: #{e.message}" }
+      end
+    end
+    
+    def page
+      # HTML interface page
+      render html: '<div id="main-outlet-wrapper"></div>'.html_safe, layout: 'application'
     end
     
     def users
@@ -158,7 +270,8 @@ after_initialize do
 
   # Registrar las rutas
   Discourse::Application.routes.append do
-    get '/discourse/users' => 'discourse_users#index'
+    get '/discourse/users' => 'discourse_users#index'  # JSON data
+    get '/discourse/users/page' => 'discourse_users#page'  # HTML interface
     get '/discourse/users/api' => 'discourse_users#users'
     post '/discourse/save_settings' => 'discourse_users#save_settings'
   end

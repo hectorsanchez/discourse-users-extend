@@ -82,9 +82,9 @@ export default Component.extend({
       this.set("loading", true);
       this.set("error", null);
 
-      console.log("Making request to /discourse/users/api");
+      console.log("Making request to /discourse/users");
       
-      ajax("/discourse/users/api", {
+      ajax("/discourse/users", {
         method: "GET"
       })
       .then(response => {
@@ -93,9 +93,14 @@ export default Component.extend({
         console.log("Response type:", typeof response);
         console.log("Response keys:", Object.keys(response || {}));
         
-        // The endpoint returns directly the object grouped by countries
-        if (response && typeof response === 'object') {
-          console.log("Setting users data:", response);
+        // The endpoint returns success: true and users_by_country
+        if (response && response.success && response.users_by_country) {
+          console.log("Setting users data:", response.users_by_country);
+          this.set("users", response.users_by_country);
+          console.log("Users set successfully");
+        } else if (response && typeof response === 'object') {
+          // Fallback for direct object response
+          console.log("Setting users data (direct object):", response);
           this.set("users", response);
           console.log("Users set successfully");
         } else {
