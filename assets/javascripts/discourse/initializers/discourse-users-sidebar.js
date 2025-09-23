@@ -299,7 +299,10 @@ function displayUsers(users) {
             <div style="display: flex; align-items: center; gap: 15px; padding: 15px; background: var(--secondary); border: 1px solid var(--primary-low); border-radius: 4px;">
               <div style="flex-shrink: 0;">
                 ${user.avatar_template ? 
-                  `<img src="${user.avatar_template}" alt="Avatar" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover;">` :
+                  `<img src="${user.avatar_template.replace('{size}', '48')}" alt="Avatar" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                   <div style="width: 48px; height: 48px; border-radius: 50%; background: var(--primary); color: var(--secondary); display: none; align-items: center; justify-content: center; font-weight: 600; font-size: 1.2em;">
+                   ${getInitials(user.firstname, user.lastname)}
+                   </div>` :
                   `<div style="width: 48px; height: 48px; border-radius: 50%; background: var(--primary); color: var(--secondary); display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 1.2em;">
                   ${getInitials(user.firstname, user.lastname)}
                   </div>`

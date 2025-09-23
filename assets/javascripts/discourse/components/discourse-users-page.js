@@ -64,6 +64,18 @@ export default Component.extend({
     return Object.keys(this.filteredUsers).length;
   }),
 
+  // Helper methods for template
+  getInitials(firstname, lastname) {
+    const first = firstname ? firstname.charAt(0).toUpperCase() : '';
+    const last = lastname ? lastname.charAt(0).toUpperCase() : '';
+    return first + last || '?';
+  },
+
+  replaceAvatarSize(avatarTemplate) {
+    if (!avatarTemplate) return '';
+    return avatarTemplate.replace('{size}', '48');
+  },
+
   actions: {
     loadUsers() {
       console.log("=== FRONTEND DEBUG - LOADING USERS ===");

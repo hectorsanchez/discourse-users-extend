@@ -87,7 +87,8 @@
               <div class="user-card">
                 <div class="user-avatar">
                   {{#if user.avatar_template}}
-                    <img src="{{user.avatar_template}}" alt="Avatar" class="avatar-image">
+                    <img src="{{replace-avatar-size user.avatar_template}}" alt="Avatar" class="avatar-image" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                    <div class="avatar-placeholder" style="display: none;">{{get-initials user.firstname user.lastname}}</div>
                   {{else}}
                     <div class="avatar-placeholder">{{get-initials user.firstname user.lastname}}</div>
                   {{/if}}
