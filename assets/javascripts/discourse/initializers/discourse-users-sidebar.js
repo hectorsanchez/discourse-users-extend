@@ -113,7 +113,6 @@ function showDiscourseUsersInterface() {
   `;
 
   // Replace main-outlet content completely
-  const mainOutlet = document.getElementById('main-outlet');
   if (mainOutlet) {
     // Clear existing content
     mainOutlet.innerHTML = '';
