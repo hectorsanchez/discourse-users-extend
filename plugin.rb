@@ -36,9 +36,10 @@ after_initialize do
 
       begin
         # Obtener lista de usuarios del directorio
-        limit = SiteSetting.dmu_discourse_api_limit || 50
-        directory_url = "#{discourse_url}/directory_items.json?order=created&period=all&limit=#{limit}"
-        Rails.logger.info "Fetching directory from: #{directory_url} (limit: #{limit})"
+        # El endpoint directory_items.json no acepta el parámetro 'limit'
+        # Usamos los parámetros estándar: order, period, asc
+        directory_url = "#{discourse_url}/directory_items.json?order=created&period=all&asc=true"
+        Rails.logger.info "Fetching directory from: #{directory_url}"
         
         directory_response = make_api_request(directory_url, api_key, api_username)
         Rails.logger.info "Directory response status: #{directory_response[:status_code]}"
@@ -173,8 +174,8 @@ after_initialize do
       # Simular el procesamiento completo como en el método users
       begin
         # Obtener lista de usuarios del directorio
-        limit = SiteSetting.dmu_discourse_api_limit || 50
-        directory_url = "#{discourse_url}/directory_items.json?order=created&period=all&limit=#{limit}"
+        # El endpoint directory_items.json no acepta el parámetro 'limit'
+        directory_url = "#{discourse_url}/directory_items.json?order=created&period=all&asc=true"
         directory_response = make_api_request(directory_url, api_key, api_username)
         
         if directory_response[:status_code] == 200
