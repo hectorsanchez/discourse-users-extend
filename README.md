@@ -42,7 +42,6 @@ sudo ./launcher rebuild app
    - **dmu_discourse_api_url**: URL del servidor Discourse (ej: https://discourse.youth-care.eu)
    - **dmu_discourse_api_key**: API Key de administración
    - **dmu_discourse_api_username**: Usuario para la API (recomendado: system)
-   - **dmu_discourse_api_limit**: Límite de usuarios por petición (default: 100)
 
 ### 4. Agregar enlace al sidebar (opcional)
 

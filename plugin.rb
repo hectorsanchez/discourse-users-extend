@@ -126,7 +126,6 @@ after_initialize do
       SiteSetting.dmu_discourse_api_key = params[:dmu_discourse_api_key]
       SiteSetting.dmu_discourse_api_username = params[:dmu_discourse_api_username]
       SiteSetting.dmu_discourse_api_url = params[:dmu_discourse_api_url]
-      SiteSetting.dmu_discourse_api_limit = params[:dmu_discourse_api_limit]
       render json: { success: true }
     end
     
