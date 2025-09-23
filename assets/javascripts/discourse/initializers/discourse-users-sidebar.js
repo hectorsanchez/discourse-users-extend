@@ -75,7 +75,7 @@ function showDiscourseUsersInterface() {
       </div>
 
       <!-- Filters -->
-      <div style="background: var(--highlight-low); padding: 20px; border-radius: 4px; margin-bottom: 30px;">
+      <div style="background: #f1b643; padding: 20px; border-radius: 4px; margin-bottom: 30px;">
         <div style="display: flex; gap: 20px; align-items: end; flex-wrap: wrap;">
           <div style="display: flex; flex-direction: column; gap: 8px;">
             <label style="font-weight: 600; font-size: 0.9em; color: var(--primary);">Filter by country:</label>
@@ -297,7 +297,7 @@ function displayUsers(users) {
     
     html += `
       <div style="background: var(--secondary); border: 1px solid var(--primary-low); border-radius: 4px; overflow: hidden;">
-        <div style="display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; background: var(--highlight-low); border-bottom: 1px solid var(--primary-low);">
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; background: #f1b643; border-bottom: 1px solid var(--primary-low);">
           <h3 style="font-size: 1.2em; font-weight: 600; margin: 0; color: var(--primary);">${countryDisplay}</h3>
           <span style="background: var(--primary); color: var(--secondary); padding: 4px 10px; border-radius: 12px; font-size: 0.9em; font-weight: 600;">${countryUsers.length} users</span>
         </div>
