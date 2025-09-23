@@ -69,7 +69,7 @@ function showDiscourseUsersInterface() {
         </div>
         <div>
           <button id="refreshButton" style="background: var(--primary); color: var(--secondary); border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
-            🔄 Refresh
+             Refresh
           </button>
         </div>
       </div>
@@ -96,7 +96,7 @@ function showDiscourseUsersInterface() {
           
           <div style="display: flex; flex-direction: column; gap: 8px;">
             <button id="clearFiltersButton" style="background: var(--primary-medium); color: var(--secondary); border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
-              🗑️ Clear filters
+              Clear filters
             </button>
           </div>
         </div>
