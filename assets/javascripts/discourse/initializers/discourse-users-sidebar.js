@@ -154,21 +154,46 @@ let allUsers = {};
 let allCountries = [];
 
 async function loadDiscourseUsers() {
+  console.log("=== SIDEBAR DEBUG - LOADING USERS ===");
   try {
+    console.log("Fetching from /discourse/users/api");
     const response = await fetch('/discourse/users/api');
+    console.log("Response status:", response.status);
+    console.log("Response ok:", response.ok);
+    
     const data = await response.json();
+    console.log("=== SIDEBAR DEBUG - API RESPONSE ===");
+    console.log("Data received:", data);
+    console.log("Data type:", typeof data);
+    console.log("Data keys:", Object.keys(data || {}));
     
     if (data.success) {
+      console.log("Success response, using users_by_country");
       allUsers = data.users_by_country;
       allCountries = Object.keys(allUsers).sort();
       
       updateStats(data);
       populateCountryFilter();
       displayUsers(allUsers);
+    } else if (data && typeof data === 'object' && !data.success) {
+      console.log("Direct object response (grouped by country)");
+      allUsers = data;
+      allCountries = Object.keys(allUsers).sort();
+      
+      console.log("Countries found:", allCountries);
+      console.log("Users by country:", allUsers);
+      
+      updateStats({ total_users: Object.values(allUsers).flat().length });
+      populateCountryFilter();
+      displayUsers(allUsers);
     } else {
+      console.error("Unexpected data format:", data);
       showError(data.error || 'Error al cargar usuarios');
     }
   } catch (error) {
+    console.error("=== SIDEBAR DEBUG - ERROR ===");
+    console.error("Error:", error);
+    console.error("Error message:", error.message);
     showError('Error de conexión: ' + error.message);
   }
 }

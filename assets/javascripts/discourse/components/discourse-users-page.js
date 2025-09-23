@@ -66,24 +66,41 @@ export default Component.extend({
 
   actions: {
     loadUsers() {
+      console.log("=== FRONTEND DEBUG - LOADING USERS ===");
       this.set("loading", true);
       this.set("error", null);
 
-        ajax("/discourse/users/api", {
+      console.log("Making request to /discourse/users/api");
+      
+      ajax("/discourse/users/api", {
         method: "GET"
       })
       .then(response => {
+        console.log("=== FRONTEND DEBUG - API RESPONSE ===");
+        console.log("Response received:", response);
+        console.log("Response type:", typeof response);
+        console.log("Response keys:", Object.keys(response || {}));
+        
         // El endpoint devuelve directamente el objeto agrupado por países
         if (response && typeof response === 'object') {
+          console.log("Setting users data:", response);
           this.set("users", response);
+          console.log("Users set successfully");
         } else {
+          console.error("Invalid response format:", response);
           this.set("error", "Formato de respuesta inválido");
         }
       })
       .catch(error => {
+        console.error("=== FRONTEND DEBUG - API ERROR ===");
+        console.error("Error object:", error);
+        console.error("Error message:", error.message);
+        console.error("Error status:", error.status);
+        console.error("Error response:", error.response);
         this.set("error", error.message || "Error al cargar usuarios");
       })
       .finally(() => {
+        console.log("=== FRONTEND DEBUG - LOADING COMPLETE ===");
         this.set("loading", false);
       });
     },
