@@ -16,10 +16,14 @@ export default {
       // Intercept click on sidebar link
       api.onPageChange(() => {
         // Only process if we're on specific pages
-        const currentPath = window.location.pathname;
-        const isDiscourseUsersPage = currentPath === "/discourse/users";
+        const currentPath = window.location.pathname || "";
+        // Match /discourse/users with optional trailing slash or query/hash
+        const isDiscourseUsersPage = /\/discourse\/users\/?(.*)?$/.test(currentPath);
         
         if (isDiscourseUsersPage) {
+          // Hide any Discourse error banners/content before rendering our UI
+          const errorContainers = document.querySelectorAll('.not-found-container, .page-not-found, .topic-error, .container .dialog-content');
+          errorContainers.forEach((el) => (el.style.display = 'none'));
           showDiscourseUsersInterface();
         } else {
           // If we're not on user pages, ensure the interface is hidden
