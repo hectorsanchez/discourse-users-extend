@@ -12,11 +12,9 @@ after_initialize do
     skip_before_action :redirect_to_login_if_required, only: [:index, :users]
     
     def index
-      # Main page - return JSON data like the working moodle plugin
-      respond_to do |format|
-        format.json do
-          response.headers['Content-Type'] = 'application/json'
-          response.headers['Access-Control-Allow-Origin'] = '*'
+      # Simple approach like working Moodle plugin
+      response.headers['Content-Type'] = 'application/json'
+      response.headers['Access-Control-Allow-Origin'] = '*'
       
       api_key = SiteSetting.dmu_discourse_api_key
       api_username = SiteSetting.dmu_discourse_api_username
@@ -28,32 +26,48 @@ after_initialize do
       end
 
       begin
-        # Get list of users from directory - construct URL safely like Moodle plugin
-        base_uri = URI("#{discourse_url}/directory_items.json")
-        base_uri.query = URI.encode_www_form({
-          'order' => 'created',
-          'period' => 'all',
-          'asc' => 'true'
-        })
-        directory_url = base_uri.to_s
+        # Get list of users from directory - simple URL construction
+        directory_url = "#{discourse_url}/directory_items.json?order=created&period=all&asc=true"
         
-        directory_response = make_api_request(directory_url, api_key, api_username)
+        # Make request directly like Moodle plugin
+        require 'net/http'
+        require 'uri'
+        require 'json'
         
-        if directory_response[:status_code] == 200
-          directory_data = JSON.parse(directory_response[:body])
+        uri = URI(directory_url)
+        http = Net::HTTP.new(uri.host, uri.port)
+        http.use_ssl = true if uri.scheme == 'https'
+        http.read_timeout = 30
+        
+        request = Net::HTTP::Get.new(uri)
+        request['Api-Key'] = api_key
+        request['Api-Username'] = api_username
+        
+        directory_response = http.request(request)
+        
+        if directory_response.code.to_i == 200
+          directory_data = JSON.parse(directory_response.body)
           users = directory_data['directory_items'].map { |item| item['user'] }
           
           # Process users
           processed_users = []
           users.each do |user|
             begin
-              # Get complete user profile - construct URL safely
-              user_uri = URI("#{discourse_url}/users/#{user['username']}.json")
-              user_url = user_uri.to_s
-              user_response = make_api_request(user_url, api_key, api_username)
+              # Get complete user profile
+              user_url = "#{discourse_url}/users/#{user['username']}.json"
+              user_uri = URI(user_url)
+              user_http = Net::HTTP.new(user_uri.host, user_uri.port)
+              user_http.use_ssl = true if user_uri.scheme == 'https'
+              user_http.read_timeout = 30
               
-              if user_response[:status_code] == 200
-                user_data = JSON.parse(user_response[:body])['user']
+              user_request = Net::HTTP::Get.new(user_uri)
+              user_request['Api-Key'] = api_key
+              user_request['Api-Username'] = api_username
+              
+              user_response = user_http.request(user_request)
+              
+              if user_response.code.to_i == 200
+                user_data = JSON.parse(user_response.body)['user']
                 location = user_data['location'] || ""
                 
                 # Extract country
@@ -123,17 +137,10 @@ after_initialize do
             timestamp: Time.current.iso8601
           }
         else
-          render json: { error: "Failed to get directory", response: directory_response }
+          render json: { error: "Failed to get directory", response: directory_response.body }
         end
       rescue => e
         render json: { error: "Error: #{e.message}" }
-      end
-        end
-        
-        format.html do
-          # For HTML requests (from Discourse menu), return a simple page
-          render html: '<div id="main-outlet-wrapper"></div>'.html_safe, layout: 'application'
-        end
       end
     end
     
@@ -151,34 +158,6 @@ after_initialize do
       render json: { success: true }
     end
     
-    private
-    
-    def make_api_request(url, api_key, api_username)
-      require 'net/http'
-      require 'uri'
-      require 'json'
-      
-      # Construir la URL de manera más segura como el plugin de Moodle
-      uri = URI(url)
-      request_uri = URI(uri.to_s)
-      http = Net::HTTP.new(request_uri.host, request_uri.port)
-      http.use_ssl = true if request_uri.scheme == 'https'
-      http.read_timeout = 30
-      
-      request = Net::HTTP::Get.new(request_uri)
-      request['Api-Key'] = api_key
-      request['Api-Username'] = api_username
-      request['Content-Type'] = 'application/json'
-      request['Accept'] = 'application/json'
-      
-      response_http = http.request(request)
-      
-      {
-        status_code: response_http.code.to_i,
-        headers: response_http.to_hash,
-        body: response_http.body
-      }
-    end
   end
 
   # Registrar las rutas
