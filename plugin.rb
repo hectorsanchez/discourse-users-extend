@@ -121,11 +121,6 @@ after_initialize do
       end
     end
     
-    def page
-      # HTML interface page
-      render html: '<div id="main-outlet-wrapper"></div>'.html_safe, layout: 'application'
-    end
-    
     def users
       response.headers['Content-Type'] = 'application/json'
       response.headers['Access-Control-Allow-Origin'] = '*'
@@ -271,7 +266,6 @@ after_initialize do
   # Registrar las rutas
   Discourse::Application.routes.append do
     get '/discourse/users' => 'discourse_users#index'  # JSON data
-    get '/discourse/users/page' => 'discourse_users#page'  # HTML interface
     get '/discourse/users/api' => 'discourse_users#users'
     post '/discourse/save_settings' => 'discourse_users#save_settings'
   end
