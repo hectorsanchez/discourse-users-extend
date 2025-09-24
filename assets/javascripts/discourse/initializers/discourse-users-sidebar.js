@@ -52,20 +52,11 @@ function showDiscourseUsersInterface() {
   
   discourseInterface.innerHTML = `
     <div style="max-width: 1200px; margin: 0 auto; padding: 20px;">
-      <!-- Header with statistics -->
+      <!-- Header -->
       <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 1px solid var(--primary-low);">
         <div>
           <h1 style="font-size: 2em; font-weight: 600; margin: 0 0 15px 0; color: var(--primary);">👥 Users by Country</h1>
-          <div style="display: flex; gap: 20px; flex-wrap: wrap;">
-            <span style="display: flex; flex-direction: column; align-items: center; text-align: center;">
-              <span id="totalUsers" style="font-size: 1.5em; font-weight: 600; color: var(--primary);">-</span>
-              <span style="font-size: 0.9em; color: var(--primary-medium); margin-top: 5px;">users</span>
-            </span>
-            <span style="display: flex; flex-direction: column; align-items: center; text-align: center;">
-              <span id="totalCountries" style="font-size: 1.5em; font-weight: 600; color: var(--primary);">-</span>
-              <span style="font-size: 0.9em; color: var(--primary-medium); margin-top: 5px;">countries</span>
-            </span>
-          </div>
+          <p style="color: var(--primary-medium); margin: 0; font-size: 1.1em;">Select a country to view its users</p>
         </div>
         <div>
           <button id="refreshButton" style="background: var(--primary); color: var(--secondary); border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
@@ -74,30 +65,25 @@ function showDiscourseUsersInterface() {
         </div>
       </div>
 
-      <!-- Filters -->
+      <!-- Country Selection -->
       <div style="background: #f1b643; padding: 20px; border-radius: 4px; margin-bottom: 30px;">
         <div style="display: flex; gap: 20px; align-items: end; flex-wrap: wrap;">
           <div style="display: flex; flex-direction: column; gap: 8px;">
-            <label style="font-weight: 600; font-size: 0.9em; color: var(--primary);">Filter by country:</label>
+            <label style="font-weight: 600; font-size: 0.9em; color: var(--primary);">Select a country:</label>
             <select id="countryFilter" style="padding: 8px 12px; border: 1px solid var(--primary-low); border-radius: 4px; font-size: 14px; min-width: 200px; background: var(--secondary); color: var(--primary);">
-              <option value="all">All countries</option>
+              <option value="">Choose a country...</option>
             </select>
           </div>
           
           <div style="display: flex; flex-direction: column; gap: 8px;">
-            <label style="font-weight: 600; font-size: 0.9em; color: var(--primary);">Search user:</label>
+            <label style="font-weight: 600; font-size: 0.9em; color: var(--primary);">Search users:</label>
             <input 
               type="text" 
               id="searchInput"
               placeholder="First name, last name, email or username..."
               style="padding: 8px 12px; border: 1px solid var(--primary-low); border-radius: 4px; font-size: 14px; min-width: 200px; background: var(--secondary); color: var(--primary);"
+              disabled
             />
-          </div>
-          
-          <div style="display: flex; flex-direction: column; gap: 8px;">
-            <button id="clearFiltersButton" style="background: var(--primary-medium); color: var(--secondary); border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
-              Clear filters
-            </button>
           </div>
         </div>
       </div>
@@ -162,9 +148,9 @@ let allUsers = {};
 let allCountries = [];
 
 async function loadDiscourseUsers() {
-  console.log("=== SIDEBAR DEBUG - LOADING USERS ===");
+  console.log("=== SIDEBAR DEBUG - LOADING COUNTRIES ===");
   try {
-    console.log("Fetching from /discourse/users");
+    console.log("Fetching countries from /discourse/users");
     const response = await fetch('/discourse/users');
     console.log("Response status:", response.status);
     console.log("Response ok:", response.ok);
@@ -172,31 +158,16 @@ async function loadDiscourseUsers() {
     const data = await response.json();
     console.log("=== SIDEBAR DEBUG - API RESPONSE ===");
     console.log("Data received:", data);
-    console.log("Data type:", typeof data);
-    console.log("Data keys:", Object.keys(data || {}));
     
-    if (data.success && data.users_by_country) {
-      console.log("Success response, using users_by_country");
-      allUsers = data.users_by_country;
-      allCountries = Object.keys(allUsers).sort();
+    if (data.success && data.countries) {
+      console.log("Success response, countries found:", data.countries);
+      allCountries = data.countries;
       
-      updateStats(data);
       populateCountryFilter();
-      displayUsers(allUsers);
-    } else if (data && typeof data === 'object' && !data.success && !data.error) {
-      console.log("Direct object response (grouped by country)");
-      allUsers = data;
-      allCountries = Object.keys(allUsers).sort();
-      
-      console.log("Countries found:", allCountries);
-      console.log("Users by country:", allUsers);
-      
-      updateStats({ total_users: Object.values(allUsers).flat().length });
-      populateCountryFilter();
-      displayUsers(allUsers);
+      showCountrySelection();
     } else {
       console.error("Error response or unexpected data format:", data);
-      showError(data.error || 'Error loading users');
+      showError(data.error || 'Error loading countries');
     }
   } catch (error) {
     console.error("=== SIDEBAR DEBUG - ERROR ===");
@@ -218,49 +189,106 @@ function populateCountryFilter() {
   const select = document.getElementById('countryFilter');
   if (!select) return;
   
-  select.innerHTML = '<option value="all">All countries</option>';
+  select.innerHTML = '<option value="">Choose a country...</option>';
   
   allCountries.forEach(country => {
     const option = document.createElement('option');
     option.value = country;
-    option.textContent = country === 'No country' ? '🌍 No country specified' : country;
+    option.textContent = country;
     select.appendChild(option);
   });
 }
 
+function showCountrySelection() {
+  const content = document.getElementById('usersContent');
+  if (!content) return;
+  
+  content.innerHTML = `
+    <div style="text-align: center; padding: 60px 20px; color: var(--primary-medium);">
+      <div style="font-size: 4em; margin-bottom: 20px;">🌍</div>
+      <h3 style="margin: 0 0 10px 0; color: var(--primary);">Select a Country</h3>
+      <p style="margin: 0; font-size: 1.1em;">Choose a country from the dropdown above to view its users.</p>
+    </div>
+  `;
+}
+
+async function loadUsersByCountry(country) {
+  console.log("=== SIDEBAR DEBUG - LOADING USERS FOR COUNTRY ===", country);
+  try {
+    console.log(`Fetching users for country: ${country}`);
+    const response = await fetch(`/discourse/users/${encodeURIComponent(country)}`);
+    console.log("Response status:", response.status);
+    console.log("Response ok:", response.ok);
+    
+    const data = await response.json();
+    console.log("=== SIDEBAR DEBUG - USERS RESPONSE ===");
+    console.log("Data received:", data);
+    
+    if (data.success && data.users) {
+      console.log("Success response, users found:", data.users.length);
+      allUsers = { [country]: data.users };
+      
+      displayUsers(allUsers);
+      enableSearch();
+    } else {
+      console.error("Error response or unexpected data format:", data);
+      showError(data.error || 'Error loading users for this country');
+    }
+  } catch (error) {
+    console.error("=== SIDEBAR DEBUG - ERROR ===");
+    console.error("Error:", error);
+    console.error("Error message:", error.message);
+    showError('Connection error: ' + error.message);
+  }
+}
+
+function enableSearch() {
+  const searchInput = document.getElementById('searchInput');
+  if (searchInput) {
+    searchInput.disabled = false;
+    searchInput.placeholder = "Search users in this country...";
+  }
+}
+
 function filterUsers() {
-  const countryFilter = document.getElementById('countryFilter');
   const searchInput = document.getElementById('searchInput');
   
-  if (!countryFilter || !searchInput) return;
+  if (!searchInput) return;
   
-  const selectedCountry = countryFilter.value;
   const searchTerm = searchInput.value.toLowerCase();
+  
+  if (!searchTerm) {
+    // If no search term, show all users for the selected country
+    const countryFilter = document.getElementById('countryFilter');
+    const selectedCountry = countryFilter ? countryFilter.value : '';
+    if (selectedCountry && allUsers[selectedCountry]) {
+      displayUsers({ [selectedCountry]: allUsers[selectedCountry] });
+    }
+    return;
+  }
   
   let filteredUsers = {};
   
   Object.keys(allUsers).forEach(country => {
-    if (selectedCountry === 'all' || country === selectedCountry) {
-      const countryUsers = allUsers[country];
-      
-      // Safety check: ensure countryUsers is an array
-      if (!Array.isArray(countryUsers)) {
-        console.warn(`Country ${country} data is not an array during filtering:`, countryUsers);
-        return;
-      }
-      
-      const filteredCountryUsers = countryUsers.filter(user => 
-        (user.firstname && user.firstname.toLowerCase().includes(searchTerm)) ||
-        (user.lastname && user.lastname.toLowerCase().includes(searchTerm)) ||
-        (user.email && user.email.toLowerCase().includes(searchTerm)) ||
-        (user.username && user.username.toLowerCase().includes(searchTerm)) ||
-        (user.country && user.country.toLowerCase().includes(searchTerm)) ||
-        (user.location && user.location.toLowerCase().includes(searchTerm))
-      );
-      
-      if (filteredCountryUsers.length > 0) {
-        filteredUsers[country] = filteredCountryUsers;
-      }
+    const countryUsers = allUsers[country];
+    
+    // Safety check: ensure countryUsers is an array
+    if (!Array.isArray(countryUsers)) {
+      console.warn(`Country ${country} data is not an array during filtering:`, countryUsers);
+      return;
+    }
+    
+    const filteredCountryUsers = countryUsers.filter(user => 
+      (user.firstname && user.firstname.toLowerCase().includes(searchTerm)) ||
+      (user.lastname && user.lastname.toLowerCase().includes(searchTerm)) ||
+      (user.email && user.email.toLowerCase().includes(searchTerm)) ||
+      (user.username && user.username.toLowerCase().includes(searchTerm)) ||
+      (user.country && user.country.toLowerCase().includes(searchTerm)) ||
+      (user.location && user.location.toLowerCase().includes(searchTerm))
+    );
+    
+    if (filteredCountryUsers.length > 0) {
+      filteredUsers[country] = filteredCountryUsers;
     }
   });
   
@@ -444,10 +472,14 @@ function clearFilters() {
   const countryFilter = document.getElementById('countryFilter');
   const searchInput = document.getElementById('searchInput');
   
-  if (countryFilter) countryFilter.value = 'all';
-  if (searchInput) searchInput.value = '';
+  if (countryFilter) countryFilter.value = '';
+  if (searchInput) {
+    searchInput.value = '';
+    searchInput.disabled = true;
+    searchInput.placeholder = "First name, last name, email or username...";
+  }
   
-  filterUsers();
+  showCountrySelection();
 }
 
 function showError(message) {
@@ -473,18 +505,24 @@ function addEventListeners() {
   // Country filter
   const countryFilter = document.getElementById('countryFilter');
   if (countryFilter) {
-    countryFilter.addEventListener('change', filterUsers);
+    countryFilter.addEventListener('change', function() {
+      const selectedCountry = this.value;
+      if (selectedCountry) {
+        loadUsersByCountry(selectedCountry);
+      } else {
+        showCountrySelection();
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput) {
+          searchInput.disabled = true;
+          searchInput.value = '';
+        }
+      }
+    });
   }
   
   // Search field
   const searchInput = document.getElementById('searchInput');
   if (searchInput) {
     searchInput.addEventListener('input', filterUsers);
-  }
-  
-  // Clear filters button
-  const clearFiltersButton = document.getElementById('clearFiltersButton');
-  if (clearFiltersButton) {
-    clearFiltersButton.addEventListener('click', clearFilters);
   }
 }

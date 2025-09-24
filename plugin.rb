@@ -12,7 +12,7 @@ after_initialize do
     skip_before_action :redirect_to_login_if_required, only: [:index, :users]
     
     def index
-      # Simple approach like working Moodle plugin
+      # Get list of countries available
       response.headers['Content-Type'] = 'application/json'
       response.headers['Access-Control-Allow-Origin'] = '*'
       
@@ -144,13 +144,14 @@ after_initialize do
           
           Rails.logger.info "Processing complete: #{success_count} success, #{error_count} errors"
           
-          # Group by country
+          # Group by country and extract unique countries
           grouped = processed_users.group_by { |u| u[:country] }
-
+          countries = grouped.keys.reject { |c| c == "No country" }.sort
+          
           render json: { 
             success: true, 
-            users_by_country: grouped,
-            total_users: processed_users.length,
+            countries: countries,
+            total_countries: countries.length,
             timestamp: Time.current.iso8601
           }
         else
@@ -162,8 +163,121 @@ after_initialize do
     end
     
     def users
-      # Alias for index method to maintain compatibility
-      index
+      # Get users for a specific country
+      country = params[:country]
+      
+      if country.blank?
+        render json: { error: "Country parameter is required" }, status: 400
+        return
+      end
+      
+      response.headers['Content-Type'] = 'application/json'
+      response.headers['Access-Control-Allow-Origin'] = '*'
+      
+      api_key = SiteSetting.dmu_discourse_api_key
+      api_username = SiteSetting.dmu_discourse_api_username
+      discourse_url = SiteSetting.dmu_discourse_api_url
+      
+      if api_key.blank? || discourse_url.blank?
+        render json: { error: "API Key and Discourse URL not configured properly." }, status: 400
+        return
+      end
+
+      begin
+        # Get all users using groups endpoint with pagination
+        directory_url = "#{discourse_url}/groups/trust_level_0/members.json?limit=1000&offset=0"
+        
+        # Make request directly like Moodle plugin
+        require 'net/http'
+        require 'uri'
+        require 'json'
+        
+        uri = URI(directory_url)
+        http = Net::HTTP.new(uri.host, uri.port)
+        http.use_ssl = true if uri.scheme == 'https'
+        http.read_timeout = 30
+        
+        request = Net::HTTP::Get.new(uri)
+        request['Api-Key'] = api_key
+        request['Api-Username'] = api_username
+        
+        directory_response = http.request(request)
+        
+        if directory_response.code.to_i == 200
+          directory_data = JSON.parse(directory_response.body)
+          users = directory_data['members'] || []
+          
+          # Process users and filter by country
+          processed_users = []
+          users.each do |user|
+            begin
+              # Get complete user profile
+              user_url = "#{discourse_url}/users/#{user['username']}.json"
+              user_uri = URI(user_url)
+              user_http = Net::HTTP.new(user_uri.host, user_uri.port)
+              user_http.use_ssl = true if user_uri.scheme == 'https'
+              user_http.read_timeout = 30
+              
+              user_request = Net::HTTP::Get.new(user_uri)
+              user_request['Api-Key'] = api_key
+              user_request['Api-Username'] = api_username
+              
+              user_response = user_http.request(user_request)
+              
+              if user_response.code.to_i == 200
+                user_data = JSON.parse(user_response.body)['user']
+                location = user_data['location'] || ""
+                
+                # Extract country
+                user_country = "No country"
+                if location.present?
+                  if location.include?(',')
+                    user_country = location.split(',').last.strip
+                  else
+                    user_country = location.strip
+                  end
+                end
+                
+                # Only process if country matches
+                if user_country == country
+                  # Split name safely
+                  name_parts = (user_data['name'] || "").split(' ')
+                  firstname = name_parts.first || user_data['username']
+                  lastname = name_parts.drop(1).join(' ') || ""
+                  
+                  processed_user = {
+                    firstname: firstname,
+                    lastname: lastname,
+                    email: user_data['email'],
+                    username: user_data['username'],
+                    location: location,
+                    country: user_country,
+                    trust_level: user_data['trust_level'],
+                    avatar_template: user_data['avatar_template']
+                  }
+                  
+                  processed_users << processed_user
+                end
+              end
+            rescue => e
+              # Skip users with errors
+              Rails.logger.error "Error processing user #{user['username']}: #{e.message}"
+            end
+          end
+          
+          render json: { 
+            success: true, 
+            users: processed_users,
+            country: country,
+            total_users: processed_users.length,
+            timestamp: Time.current.iso8601
+          }
+        else
+          render json: { error: "Failed to get directory", response: directory_response.body }
+        end
+      rescue => e
+        render json: { error: "Error: #{e.message}" }
+      end
     end
 
     def save_settings
@@ -179,7 +293,8 @@ after_initialize do
 
   # Registrar las rutas
   Discourse::Application.routes.append do
-    get '/discourse/users' => 'discourse_users#index'  # JSON data
+    get '/discourse/users' => 'discourse_users#index'  # Get list of countries
+    get '/discourse/users/:country' => 'discourse_users#users'  # Get users by country
     post '/discourse/save_settings' => 'discourse_users#save_settings'
   end
 end
