@@ -26,8 +26,9 @@ after_initialize do
       end
 
       begin
-        # Get list of users from directory - simple URL construction
-        directory_url = "#{discourse_url}/directory_items.json?order=created&period=all&asc=true"
+        # Get all users using groups endpoint with pagination
+        # This endpoint supports limit and offset parameters
+        directory_url = "#{discourse_url}/groups/trust_level_0/members.json?limit=1000&offset=0"
         
         # Make request directly like Moodle plugin
         require 'net/http'
@@ -47,7 +48,8 @@ after_initialize do
         
         if directory_response.code.to_i == 200
           directory_data = JSON.parse(directory_response.body)
-          users = directory_data['directory_items'].map { |item| item['user'] }
+          # Groups endpoint returns members directly, not in directory_items
+          users = directory_data['members'] || []
           
           # Process users
           processed_users = []
