@@ -74,31 +74,63 @@ after_initialize do
         # Process users to extract countries
         countries_set = Set.new
         
+        # Debug: Check what fields are available in user data
+        Rails.logger.info "=== CHECKING AVAILABLE USER FIELDS ==="
+        if unique_users.any?
+          sample_user = unique_users.first['user']
+          Rails.logger.info "Available fields in user data: #{sample_user.keys}"
+          Rails.logger.info "Sample user data: #{sample_user.inspect}"
+        end
+        
+        # Try to extract country from different possible fields
         unique_users.each do |user_item|
           begin
             user_data = user_item['user']
-            location = user_data['location'] || ""
             
-            Rails.logger.info "User #{user_data['username']}: location='#{location}'"
+            # Check multiple possible location fields
+            location = user_data['location'] || user_data['user_location'] || user_data['geo_location'] || ""
+            bio = user_data['bio_raw'] || user_data['bio'] || ""
+            name = user_data['name'] || ""
             
-            # Extract country
+            Rails.logger.info "User #{user_data['username']}:"
+            Rails.logger.info "  - location: '#{location}'"
+            Rails.logger.info "  - bio: '#{bio[0..100]}...'" if bio.present?
+            Rails.logger.info "  - name: '#{name}'"
+            
+            # Try to extract country from location field
+            country = nil
             if location.present?
               if location.include?(',')
                 country = location.split(',').last.strip
               else
                 country = location.strip
               end
+            end
+            
+            # If no country from location, try to extract from bio or name
+            if country.blank? && bio.present?
+              # Look for country names in bio
+              country_patterns = [
+                /(?:from|in|based in|located in)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i,
+                /([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+(?:resident|citizen|national)/i
+              ]
               
-              Rails.logger.info "  -> Extracted country: '#{country}'"
-              
-              if country.present? && country != "No country"
-                countries_set.add(country)
-                Rails.logger.info "  -> Added to countries set: '#{country}'"
-              else
-                Rails.logger.info "  -> Skipped country: '#{country}' (empty or 'No country')"
+              country_patterns.each do |pattern|
+                match = bio.match(pattern)
+                if match
+                  country = match[1].strip
+                  break
+                end
               end
+            end
+            
+            Rails.logger.info "  -> Extracted country: '#{country}'"
+            
+            if country.present? && country != "No country" && country.length > 2
+              countries_set.add(country)
+              Rails.logger.info "  -> Added to countries set: '#{country}'"
             else
-              Rails.logger.info "  -> No location data"
+              Rails.logger.info "  -> Skipped country: '#{country}' (empty, too short, or 'No country')"
             end
           rescue => e
             Rails.logger.error "Error processing user #{user_item['user']['username']}: #{e.message}"
@@ -117,10 +149,13 @@ after_initialize do
         
         # Debug: Show sample user data in response
         sample_users = unique_users.first(3).map do |user_item|
+          user_data = user_item['user']
           {
-            username: user_item['user']['username'],
-            location: user_item['user']['location'],
-            name: user_item['user']['name']
+            username: user_data['username'],
+            location: user_data['location'],
+            name: user_data['name'],
+            bio: user_data['bio_raw'] || user_data['bio'] || "",
+            available_fields: user_data.keys
           }
         end
         
