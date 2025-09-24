@@ -423,6 +423,19 @@ function loadSingleAvatar(img) {
   img.addEventListener('error', img._errorHandler);
   img.addEventListener('load', img._loadHandler);
   
+  // Initially hide the fallback div and show the image
+  fallbackDiv.style.display = 'none';
+  fallbackDiv.style.visibility = 'hidden';
+  fallbackDiv.style.opacity = '0';
+  img.style.display = 'block';
+  
+  // Check if image is already loaded
+  if (img.complete && img.naturalHeight !== 0) {
+    console.log(`Avatar already loaded for user ${userIndex}`);
+    img._loadHandler();
+    return;
+  }
+  
   // Set the source to trigger loading
   img.src = src;
 }
