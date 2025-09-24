@@ -26,107 +26,87 @@ after_initialize do
       end
 
       begin
-        # Use directory endpoint which is more efficient and has less rate limiting
-        directory_url = "#{discourse_url}/directory_items.json?order=created&period=all&asc=true"
+        # Use multiple directory calls to get more users and better country coverage
+        # Directory endpoint is limited to 50 users per call, so we need multiple calls
+        all_users = []
         
-        # Make request directly like Moodle plugin
-        require 'net/http'
-        require 'uri'
-        require 'json'
+        # Get users from different time periods to get better coverage
+        periods = ['all', 'yearly', 'monthly', 'weekly', 'daily']
         
-        uri = URI(directory_url)
-        http = Net::HTTP.new(uri.host, uri.port)
-        http.use_ssl = true if uri.scheme == 'https'
-        http.read_timeout = 30
+        periods.each do |period|
+          directory_url = "#{discourse_url}/directory_items.json?order=created&period=#{period}&asc=true"
         
-        request = Net::HTTP::Get.new(uri)
-        request['Api-Key'] = api_key
-        request['Api-Username'] = api_username
-        
-        directory_response = http.request(request)
-        
-        if directory_response.code.to_i == 200
-          directory_data = JSON.parse(directory_response.body)
-          # Directory endpoint returns users in directory_items
-          users = directory_data['directory_items'] || []
+          # Make request for this period
+          require 'net/http'
+          require 'uri'
+          require 'json'
           
-          Rails.logger.info "=== DISCOURSE USERS DEBUG ==="
-          Rails.logger.info "Total users from API: #{users.length}"
-          Rails.logger.info "First few users: #{users.first(3).map { |u| { username: u['username'], location: u['location'] } }}"
+          uri = URI(directory_url)
+          http = Net::HTTP.new(uri.host, uri.port)
+          http.use_ssl = true if uri.scheme == 'https'
+          http.read_timeout = 30
           
-          # Process users
-          processed_users = []
-          success_count = 0
-          error_count = 0
-          users.each do |user_item|
-            begin
-              # Directory endpoint provides user data directly, no need for individual API calls
-              user_data = user_item['user']
-              location = user_data['location'] || ""
-              
-              Rails.logger.info "User #{user_data['username']}: location='#{location}'"
-              
-              # Extract country
-              country = "No country"
-              if location.present?
-                if location.include?(',')
-                  country = location.split(',').last.strip
-                else
-                  country = location.strip
-                end
-              end
-              
-              # Split name safely
-              name_parts = (user_data['name'] || "").split(' ')
-              firstname = name_parts.first || user_data['username']
-              lastname = name_parts.drop(1).join(' ') || ""
-              
-              processed_user = {
-                firstname: firstname,
-                lastname: lastname,
-                email: user_data['email'],
-                username: user_data['username'],
-                location: location,
-                country: country,
-                trust_level: user_data['trust_level'],
-                avatar_template: user_data['avatar_template']
-              }
-              
-              processed_users << processed_user
-              success_count += 1
-            rescue => e
-              # In case of error, use basic data
-              Rails.logger.error "Error processing user #{user_item['user']['username']}: #{e.message}"
-              processed_user = {
-                firstname: user_item['user']['username'],
-                lastname: "",
-                email: nil,
-                username: user_item['user']['username'],
-                location: nil,
-                country: "No country",
-                trust_level: user_item['user']['trust_level'],
-                avatar_template: user_item['user']['avatar_template']
-              }
-              processed_users << processed_user
-              error_count += 1
-            end
+          request = Net::HTTP::Get.new(uri)
+          request['Api-Key'] = api_key
+          request['Api-Username'] = api_username
+          
+          directory_response = http.request(request)
+          
+          if directory_response.code.to_i == 200
+            directory_data = JSON.parse(directory_response.body)
+            users = directory_data['directory_items'] || []
+            all_users.concat(users)
+            Rails.logger.info "Period #{period}: #{users.length} users"
+          else
+            Rails.logger.warn "Failed to get users for period #{period}: #{directory_response.code}"
           end
           
-          Rails.logger.info "Processing complete: #{success_count} success, #{error_count} errors"
-          
-          # Group by country and extract unique countries
-          grouped = processed_users.group_by { |u| u[:country] }
-          countries = grouped.keys.reject { |c| c == "No country" }.sort
-          
-          render json: { 
-            success: true, 
-            countries: countries,
-            total_countries: countries.length,
-            timestamp: Time.current.iso8601
-          }
-        else
-          render json: { error: "Failed to get directory", response: directory_response.body }
+          # Small delay to avoid rate limiting
+          sleep(0.5)
         end
+        
+        # Remove duplicates based on username
+        unique_users = all_users.uniq { |u| u['user']['username'] }
+        
+        Rails.logger.info "=== DISCOURSE USERS DEBUG ==="
+        Rails.logger.info "Total unique users collected: #{unique_users.length}"
+        
+        # Process users to extract countries
+        countries_set = Set.new
+        
+        unique_users.each do |user_item|
+          begin
+            user_data = user_item['user']
+            location = user_data['location'] || ""
+            
+            # Extract country
+            if location.present?
+              if location.include?(',')
+                country = location.split(',').last.strip
+              else
+                country = location.strip
+              end
+              
+              if country.present? && country != "No country"
+                countries_set.add(country)
+              end
+            end
+          rescue => e
+            Rails.logger.error "Error processing user #{user_item['user']['username']}: #{e.message}"
+          end
+        end
+        
+        countries = countries_set.to_a.sort
+        
+        Rails.logger.info "Countries found: #{countries}"
+        
+        render json: { 
+          success: true, 
+          countries: countries,
+          total_countries: countries.length,
+          total_users_checked: unique_users.length,
+          timestamp: Time.current.iso8601
+        }
       rescue => e
         render json: { error: "Error: #{e.message}" }
       end
