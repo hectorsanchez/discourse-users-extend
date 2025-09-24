@@ -307,11 +307,58 @@ after_initialize do
           end
         end
         
+        # Debug: Show sample users and their countries
+        sample_users_debug = unique_users.first(5).map do |user_item|
+          username = user_item['user']['username']
+          # Get a quick sample of user data
+          begin
+            user_url = "#{discourse_url}/users/#{username}.json"
+            user_uri = URI(user_url)
+            user_http = Net::HTTP.new(user_uri.host, user_uri.port)
+            user_http.use_ssl = true if user_uri.scheme == 'https'
+            user_http.read_timeout = 10
+            
+            user_request = Net::HTTP::Get.new(user_uri)
+            user_request['Api-Key'] = api_key
+            user_request['Api-Username'] = api_username
+            
+            user_response = user_http.request(user_request)
+            
+            if user_response.code.to_i == 200
+              user_data = JSON.parse(user_response.body)['user']
+              location = user_data['location'] || ""
+              user_country = "No country"
+              if location.present?
+                if location.include?(',')
+                  user_country = location.split(',').last.strip
+                else
+                  user_country = location.strip
+                end
+              end
+              {
+                username: username,
+                location: location,
+                country: user_country,
+                matches_target: user_country == country
+              }
+            else
+              { username: username, error: "Failed to get user data" }
+            end
+          rescue => e
+            { username: username, error: e.message }
+          end
+        end
+        
         render json: { 
           success: true, 
           users: processed_users,
           country: country,
           total_users: processed_users.length,
+          debug_info: {
+            total_users_checked: unique_users.length,
+            sample_users: sample_users_debug,
+            target_country: country
+          },
           timestamp: Time.current.iso8601
         }
       rescue => e
