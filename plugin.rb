@@ -186,29 +186,26 @@ after_initialize do
           return
       end
       
-      # Use groups endpoint to get ALL users (more complete than directory)
+      # Use directory endpoint with multiple periods and pagination
       all_users = []
+      periods = ['all', 'yearly', 'monthly', 'weekly', 'daily']
       
-      # Get users from trust level groups (covers all users)
-      trust_levels = ['trust_level_0', 'trust_level_1', 'trust_level_2', 'trust_level_3', 'trust_level_4']
-      
-      trust_levels.each do |trust_level|
-        # Use higher limit and pagination
-        offset = 0
-        limit = 1000
-        total_fetched = 0
+      periods.each do |period|
+        Rails.logger.info "Fetching users for period: #{period}"
         
-        Rails.logger.info "Fetching users from trust level: #{trust_level}"
+        # Try multiple pages for each period
+        offset = 0
+        limit = 50  # Directory endpoint limit
         
         loop do
-          groups_url = "#{discourse_url}/groups/#{trust_level}/members.json?limit=#{limit}&offset=#{offset}"
-          Rails.logger.info "Fetching from: #{groups_url}"
+          directory_url = "#{discourse_url}/directory_items.json?order=created&period=#{period}&asc=true&page=#{(offset/limit) + 1}"
+          Rails.logger.info "Fetching from: #{directory_url}"
           
           require 'net/http'
           require 'uri'
           require 'json'
           
-          uri = URI(groups_url)
+          uri = URI(directory_url)
           http = Net::HTTP.new(uri.host, uri.port)
           http.use_ssl = true if uri.scheme == 'https'
           http.read_timeout = 30
@@ -218,53 +215,45 @@ after_initialize do
           request['Api-Username'] = api_username
           
           start_time = Time.current
-          groups_response = http.request(request)
+          directory_response = http.request(request)
           request_time = Time.current - start_time
           
-          Rails.logger.info "Trust level #{trust_level} request completed in #{request_time.round(2)}s, status: #{groups_response.code}"
+          Rails.logger.info "Period #{period} page #{(offset/limit) + 1} request completed in #{request_time.round(2)}s, status: #{directory_response.code}"
           
-          if groups_response.code.to_i == 200
-            groups_data = JSON.parse(groups_response.body)
-            users = groups_data['members'] || []
+          if directory_response.code.to_i == 200
+            directory_data = JSON.parse(directory_response.body)
+            users = directory_data['directory_items'] || []
             
             if users.empty?
-              Rails.logger.info "No more users for trust level #{trust_level}, breaking loop"
+              Rails.logger.info "No more users for period #{period}, breaking pagination"
               break
-            end
-            
-            # Debug: Log sample user data from groups endpoint
-            if offset == 0 && users.any?
-              sample_user = users.first
-              Rails.logger.info "SAMPLE USER FROM GROUPS: #{sample_user.inspect}"
-              Rails.logger.info "Available fields in groups response: #{sample_user.keys}"
             end
             
             all_users.concat(users)
-            total_fetched += users.length
-            offset += limit
-            
-            Rails.logger.info "Trust level #{trust_level}: #{users.length} users added (total for this level: #{total_fetched})"
+            Rails.logger.info "Period #{period} page #{(offset/limit) + 1}: #{users.length} users added (total so far: #{all_users.length})"
             
             # If we got less than the limit, we've reached the end
             if users.length < limit
-              Rails.logger.info "Reached end of users for trust level #{trust_level}"
+              Rails.logger.info "Reached end of users for period #{period}"
               break
             end
             
+            offset += limit
+            
           else
-            Rails.logger.warn "Failed to get users for trust level #{trust_level}: #{groups_response.code} - #{groups_response.body[0..200]}"
+            Rails.logger.warn "Failed to get users for period #{period} page #{(offset/limit) + 1}: #{directory_response.code} - #{directory_response.body[0..200]}"
             break
           end
           
-          sleep(0.3) # Small delay to avoid rate limiting
+          sleep(0.5) # Small delay to avoid rate limiting
         end
         
-        Rails.logger.info "Completed trust level #{trust_level}: #{total_fetched} users"
+        Rails.logger.info "Completed period #{period}: #{all_users.length} total users so far"
       end
       
       # Remove duplicates based on username
-      unique_users = all_users.uniq { |u| u['username'] }
-      Rails.logger.info "Groups fetch complete: #{all_users.length} total users, #{unique_users.length} unique users"
+      unique_users = all_users.uniq { |u| u['user']['username'] }
+      Rails.logger.info "Directory fetch complete: #{all_users.length} total users, #{unique_users.length} unique users"
       
       # Process users and group by country
       $users_by_country_cache = {}
@@ -274,11 +263,11 @@ after_initialize do
       
       Rails.logger.info "Starting individual user data processing for #{unique_users.length} users..."
       
-      unique_users.each_with_index do |user_data, index|
+      unique_users.each_with_index do |user_item, index|
         begin
-          username = user_data['username']
+          username = user_item['user']['username']
           
-          # Get individual user data for location
+          # Get individual user data
           user_url = "#{discourse_url}/users/#{username}.json"
           user_uri = URI(user_url)
           user_http = Net::HTTP.new(user_uri.host, user_uri.port)
@@ -292,8 +281,8 @@ after_initialize do
           user_response = user_http.request(user_request)
           
           if user_response.code.to_i == 200
-            full_user_data = JSON.parse(user_response.body)['user']
-            location = full_user_data['location'] || ""
+            user_data = JSON.parse(user_response.body)['user']
+            location = user_data['location'] || ""
             
             # Extract country
             user_country = "No country"
@@ -327,8 +316,8 @@ after_initialize do
             countries_found.add(user_country)
             processed_count += 1
             
-            # Log progress every 100 users
-            if (index + 1) % 100 == 0
+            # Log progress every 50 users
+            if (index + 1) % 50 == 0
               Rails.logger.info "Progress: #{index + 1}/#{unique_users.length} users processed, #{countries_found.size} countries found"
             end
           else
@@ -336,7 +325,7 @@ after_initialize do
             error_count += 1
           end
           
-          sleep(0.05) # Reduced delay since we have more users
+          sleep(0.1) # Small delay to avoid rate limiting
         rescue => e
           Rails.logger.error "Error processing user #{username}: #{e.message}"
           error_count += 1
