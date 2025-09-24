@@ -196,35 +196,71 @@ after_initialize do
       end
 
       begin
-        # Use directory endpoint which is more efficient and has less rate limiting
-        directory_url = "#{discourse_url}/directory_items.json?order=created&period=all&asc=true"
+        # For specific country, we need to get more users to find users from that country
+        # Use multiple directory calls to get better coverage
+        all_users = []
         
-        # Make request directly like Moodle plugin
-        require 'net/http'
-        require 'uri'
-        require 'json'
+        # Get users from different time periods to get better coverage
+        periods = ['all', 'yearly', 'monthly', 'weekly', 'daily']
         
-        uri = URI(directory_url)
-        http = Net::HTTP.new(uri.host, uri.port)
-        http.use_ssl = true if uri.scheme == 'https'
-        http.read_timeout = 30
+        periods.each do |period|
+          directory_url = "#{discourse_url}/directory_items.json?order=created&period=#{period}&asc=true"
         
-        request = Net::HTTP::Get.new(uri)
-        request['Api-Key'] = api_key
-        request['Api-Username'] = api_username
-        
-        directory_response = http.request(request)
-        
-        if directory_response.code.to_i == 200
-          directory_data = JSON.parse(directory_response.body)
-          users = directory_data['directory_items'] || []
+          # Make request for this period
+          require 'net/http'
+          require 'uri'
+          require 'json'
           
-          # Process users and filter by country
-          processed_users = []
-          users.each do |user_item|
-            begin
-              # Directory endpoint provides user data directly, no need for individual API calls
-              user_data = user_item['user']
+          uri = URI(directory_url)
+          http = Net::HTTP.new(uri.host, uri.port)
+          http.use_ssl = true if uri.scheme == 'https'
+          http.read_timeout = 30
+          
+          request = Net::HTTP::Get.new(uri)
+          request['Api-Key'] = api_key
+          request['Api-Username'] = api_username
+          
+          directory_response = http.request(request)
+          
+          if directory_response.code.to_i == 200
+            directory_data = JSON.parse(directory_response.body)
+            users = directory_data['directory_items'] || []
+            all_users.concat(users)
+            Rails.logger.info "Period #{period}: #{users.length} users"
+          else
+            Rails.logger.warn "Failed to get users for period #{period}: #{directory_response.code}"
+          end
+          
+          # Small delay to avoid rate limiting
+          sleep(0.5)
+        end
+        
+        # Remove duplicates based on username
+        unique_users = all_users.uniq { |u| u['user']['username'] }
+        
+        Rails.logger.info "Total unique users collected: #{unique_users.length}"
+        
+        # Process users and filter by country
+        processed_users = []
+        unique_users.each do |user_item|
+          begin
+            username = user_item['user']['username']
+            
+            # Get individual user data to access location field
+            user_url = "#{discourse_url}/users/#{username}.json"
+            user_uri = URI(user_url)
+            user_http = Net::HTTP.new(user_uri.host, user_uri.port)
+            user_http.use_ssl = true if user_uri.scheme == 'https'
+            user_http.read_timeout = 30
+            
+            user_request = Net::HTTP::Get.new(user_uri)
+            user_request['Api-Key'] = api_key
+            user_request['Api-Username'] = api_username
+            
+            user_response = user_http.request(user_request)
+            
+            if user_response.code.to_i == 200
+              user_data = JSON.parse(user_response.body)['user']
               location = user_data['location'] || ""
               
               # Extract country
@@ -234,9 +270,11 @@ after_initialize do
                   user_country = location.split(',').last.strip
                 else
                   user_country = location.strip
-                  end
                 end
-                
+              end
+              
+              Rails.logger.info "User #{username}: location='#{location}' -> country='#{user_country}'"
+              
               # Only process if country matches
               if user_country == country
                 # Split name safely
@@ -256,23 +294,26 @@ after_initialize do
                 }
                 
                 processed_users << processed_user
+                Rails.logger.info "  -> Added user #{username} from #{country}"
               end
-            rescue => e
-              # Skip users with errors
-              Rails.logger.error "Error processing user #{user_item['user']['username']}: #{e.message}"
+            else
+              Rails.logger.warn "Failed to get user data for #{username}: #{user_response.code}"
             end
+            
+            # Small delay to avoid rate limiting
+            sleep(0.1)
+          rescue => e
+            Rails.logger.error "Error processing user #{username}: #{e.message}"
           end
-          
-          render json: { 
-            success: true, 
-            users: processed_users,
-                country: country,
-            total_users: processed_users.length,
-            timestamp: Time.current.iso8601
-          }
-        else
-          render json: { error: "Failed to get directory", response: directory_response.body }
         end
+        
+        render json: { 
+          success: true, 
+          users: processed_users,
+          country: country,
+          total_users: processed_users.length,
+          timestamp: Time.current.iso8601
+        }
       rescue => e
         render json: { error: "Error: #{e.message}" }
       end
