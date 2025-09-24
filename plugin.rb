@@ -26,9 +26,8 @@ after_initialize do
       end
 
       begin
-        # Get all users using groups endpoint with pagination
-        # This endpoint supports limit and offset parameters
-        directory_url = "#{discourse_url}/groups/trust_level_0/members.json?limit=1000&offset=0"
+        # Use directory endpoint which is more efficient and has less rate limiting
+        directory_url = "#{discourse_url}/directory_items.json?order=created&period=all&asc=true"
         
         # Make request directly like Moodle plugin
         require 'net/http'
@@ -48,8 +47,8 @@ after_initialize do
         
         if directory_response.code.to_i == 200
           directory_data = JSON.parse(directory_response.body)
-          # Groups endpoint returns members directly, not in directory_items
-          users = directory_data['members'] || []
+          # Directory endpoint returns users in directory_items
+          users = directory_data['directory_items'] || []
           
           Rails.logger.info "=== DISCOURSE USERS DEBUG ==="
           Rails.logger.info "Total users from API: #{users.length}"
@@ -59,83 +58,54 @@ after_initialize do
           processed_users = []
           success_count = 0
           error_count = 0
-          users.each do |user|
+          users.each do |user_item|
             begin
-              # Get complete user profile
-              user_url = "#{discourse_url}/users/#{user['username']}.json"
-              user_uri = URI(user_url)
-              user_http = Net::HTTP.new(user_uri.host, user_uri.port)
-              user_http.use_ssl = true if user_uri.scheme == 'https'
-              user_http.read_timeout = 30
+              # Directory endpoint provides user data directly, no need for individual API calls
+              user_data = user_item['user']
+              location = user_data['location'] || ""
               
-              user_request = Net::HTTP::Get.new(user_uri)
-              user_request['Api-Key'] = api_key
-              user_request['Api-Username'] = api_username
+              Rails.logger.info "User #{user_data['username']}: location='#{location}'"
               
-              user_response = user_http.request(user_request)
-              
-              if user_response.code.to_i == 200
-                user_data = JSON.parse(user_response.body)['user']
-                location = user_data['location'] || ""
-                
-                Rails.logger.info "User #{user['username']}: location='#{location}'"
-                
-                # Extract country
-                country = "No country"
-                if location.present?
-                  if location.include?(',')
-                    country = location.split(',').last.strip
-                  else
-                    country = location.strip
-                  end
+              # Extract country
+              country = "No country"
+              if location.present?
+                if location.include?(',')
+                  country = location.split(',').last.strip
+                else
+                  country = location.strip
                 end
-                
-                # Split name safely
-                name_parts = (user_data['name'] || "").split(' ')
-                firstname = name_parts.first || user_data['username']
-                lastname = name_parts.drop(1).join(' ') || ""
-                
-                processed_user = {
-                  firstname: firstname,
-                  lastname: lastname,
-                  email: user_data['email'],
-                  username: user_data['username'],
-                  location: location,
-                  country: country,
-                  trust_level: user_data['trust_level'],
-                  avatar_template: user_data['avatar_template']
-                }
-                
-                processed_users << processed_user
-                success_count += 1
-              else
-                # Fallback with basic data
-                Rails.logger.warn "Failed to get user data for #{user['username']}: #{user_response.code}"
-                processed_user = {
-                  firstname: user['username'],
-                  lastname: "",
-                  email: nil,
-                  username: user['username'],
-                  location: nil,
-                  country: "No country",
-                  trust_level: user['trust_level'],
-                  avatar_template: user['avatar_template']
-                }
-                processed_users << processed_user
-                error_count += 1
               end
+              
+              # Split name safely
+              name_parts = (user_data['name'] || "").split(' ')
+              firstname = name_parts.first || user_data['username']
+              lastname = name_parts.drop(1).join(' ') || ""
+              
+              processed_user = {
+                firstname: firstname,
+                lastname: lastname,
+                email: user_data['email'],
+                username: user_data['username'],
+                location: location,
+                country: country,
+                trust_level: user_data['trust_level'],
+                avatar_template: user_data['avatar_template']
+              }
+              
+              processed_users << processed_user
+              success_count += 1
             rescue => e
               # In case of error, use basic data
-              Rails.logger.error "Error processing user #{user['username']}: #{e.message}"
+              Rails.logger.error "Error processing user #{user_item['user']['username']}: #{e.message}"
               processed_user = {
-                firstname: user['username'],
+                firstname: user_item['user']['username'],
                 lastname: "",
                 email: nil,
-                username: user['username'],
+                username: user_item['user']['username'],
                 location: nil,
                 country: "No country",
-                trust_level: user['trust_level'],
-                avatar_template: user['avatar_template']
+                trust_level: user_item['user']['trust_level'],
+                avatar_template: user_item['user']['avatar_template']
               }
               processed_users << processed_user
               error_count += 1
@@ -184,8 +154,8 @@ after_initialize do
       end
 
       begin
-        # Get all users using groups endpoint with pagination
-        directory_url = "#{discourse_url}/groups/trust_level_0/members.json?limit=1000&offset=0"
+        # Use directory endpoint which is more efficient and has less rate limiting
+        directory_url = "#{discourse_url}/directory_items.json?order=created&period=all&asc=true"
         
         # Make request directly like Moodle plugin
         require 'net/http'
@@ -205,63 +175,49 @@ after_initialize do
         
         if directory_response.code.to_i == 200
           directory_data = JSON.parse(directory_response.body)
-          users = directory_data['members'] || []
+          users = directory_data['directory_items'] || []
           
           # Process users and filter by country
           processed_users = []
-          users.each do |user|
+          users.each do |user_item|
             begin
-              # Get complete user profile
-              user_url = "#{discourse_url}/users/#{user['username']}.json"
-              user_uri = URI(user_url)
-              user_http = Net::HTTP.new(user_uri.host, user_uri.port)
-              user_http.use_ssl = true if user_uri.scheme == 'https'
-              user_http.read_timeout = 30
+              # Directory endpoint provides user data directly, no need for individual API calls
+              user_data = user_item['user']
+              location = user_data['location'] || ""
               
-              user_request = Net::HTTP::Get.new(user_uri)
-              user_request['Api-Key'] = api_key
-              user_request['Api-Username'] = api_username
-              
-              user_response = user_http.request(user_request)
-              
-              if user_response.code.to_i == 200
-                user_data = JSON.parse(user_response.body)['user']
-                location = user_data['location'] || ""
-                
-                # Extract country
-                user_country = "No country"
-                if location.present?
-                  if location.include?(',')
-                    user_country = location.split(',').last.strip
-                  else
-                    user_country = location.strip
-                  end
+              # Extract country
+              user_country = "No country"
+              if location.present?
+                if location.include?(',')
+                  user_country = location.split(',').last.strip
+                else
+                  user_country = location.strip
                 end
+              end
+              
+              # Only process if country matches
+              if user_country == country
+                # Split name safely
+                name_parts = (user_data['name'] || "").split(' ')
+                firstname = name_parts.first || user_data['username']
+                lastname = name_parts.drop(1).join(' ') || ""
                 
-                # Only process if country matches
-                if user_country == country
-                  # Split name safely
-                  name_parts = (user_data['name'] || "").split(' ')
-                  firstname = name_parts.first || user_data['username']
-                  lastname = name_parts.drop(1).join(' ') || ""
-                  
-                  processed_user = {
-                    firstname: firstname,
-                    lastname: lastname,
-                    email: user_data['email'],
-                    username: user_data['username'],
-                    location: location,
-                    country: user_country,
-                    trust_level: user_data['trust_level'],
-                    avatar_template: user_data['avatar_template']
-                  }
-                  
-                  processed_users << processed_user
-                end
+                processed_user = {
+                  firstname: firstname,
+                  lastname: lastname,
+                  email: user_data['email'],
+                  username: user_data['username'],
+                  location: location,
+                  country: user_country,
+                  trust_level: user_data['trust_level'],
+                  avatar_template: user_data['avatar_template']
+                }
+                
+                processed_users << processed_user
               end
             rescue => e
               # Skip users with errors
-              Rails.logger.error "Error processing user #{user['username']}: #{e.message}"
+              Rails.logger.error "Error processing user #{user_item['user']['username']}: #{e.message}"
             end
           end
           
