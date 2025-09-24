@@ -403,12 +403,16 @@ function loadSingleAvatar(img) {
     console.log(`Avatar failed to load for user ${userIndex}, showing initials`);
     this.style.display = 'none';
     fallbackDiv.style.display = 'flex';
+    fallbackDiv.style.visibility = 'visible';
+    fallbackDiv.style.opacity = '1';
   });
   
   img.addEventListener('load', function() {
     console.log(`Avatar loaded successfully for user ${userIndex}`);
     this.style.display = 'block';
     fallbackDiv.style.display = 'none';
+    fallbackDiv.style.visibility = 'hidden';
+    fallbackDiv.style.opacity = '0';
   });
   
   // Set the source to trigger loading
