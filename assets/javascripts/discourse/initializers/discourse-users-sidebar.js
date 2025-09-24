@@ -55,7 +55,7 @@ function showDiscourseUsersInterface() {
       <!-- Header with statistics -->
       <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 1px solid var(--primary-low);">
         <div>
-          <h1 style="font-size: 2em; font-weight: 600; margin: 0 0 15px 0; color: var(--primary);">👥 Discourse Users</h1>
+          <h1 style="font-size: 2em; font-weight: 600; margin: 0 0 15px 0; color: var(--primary);">👥 Users by Country</h1>
           <div style="display: flex; gap: 20px; flex-wrap: wrap;">
             <span style="display: flex; flex-direction: column; align-items: center; text-align: center;">
               <span id="totalUsers" style="font-size: 1.5em; font-weight: 600; color: var(--primary);">-</span>
