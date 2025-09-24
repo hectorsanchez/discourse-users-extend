@@ -51,8 +51,14 @@ after_initialize do
           # Groups endpoint returns members directly, not in directory_items
           users = directory_data['members'] || []
           
+          Rails.logger.info "=== DISCOURSE USERS DEBUG ==="
+          Rails.logger.info "Total users from API: #{users.length}"
+          Rails.logger.info "First few users: #{users.first(3).map { |u| { username: u['username'], location: u['location'] } }}"
+          
           # Process users
           processed_users = []
+          success_count = 0
+          error_count = 0
           users.each do |user|
             begin
               # Get complete user profile
@@ -71,6 +77,8 @@ after_initialize do
               if user_response.code.to_i == 200
                 user_data = JSON.parse(user_response.body)['user']
                 location = user_data['location'] || ""
+                
+                Rails.logger.info "User #{user['username']}: location='#{location}'"
                 
                 # Extract country
                 country = "No country"
@@ -99,8 +107,10 @@ after_initialize do
                 }
                 
                 processed_users << processed_user
+                success_count += 1
               else
                 # Fallback with basic data
+                Rails.logger.warn "Failed to get user data for #{user['username']}: #{user_response.code}"
                 processed_user = {
                   firstname: user['username'],
                   lastname: "",
@@ -112,9 +122,11 @@ after_initialize do
                   avatar_template: user['avatar_template']
                 }
                 processed_users << processed_user
+                error_count += 1
               end
             rescue => e
               # In case of error, use basic data
+              Rails.logger.error "Error processing user #{user['username']}: #{e.message}"
               processed_user = {
                 firstname: user['username'],
                 lastname: "",
@@ -126,8 +138,11 @@ after_initialize do
                 avatar_template: user['avatar_template']
               }
               processed_users << processed_user
+              error_count += 1
             end
           end
+          
+          Rails.logger.info "Processing complete: #{success_count} success, #{error_count} errors"
           
           # Group by country
           grouped = processed_users.group_by { |u| u[:country] }
