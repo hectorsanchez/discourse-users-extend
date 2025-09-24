@@ -17,8 +17,9 @@ export default {
       api.onPageChange(() => {
         // Only process if we're on specific pages
         const currentPath = window.location.pathname || "";
-        // Match /discourse/users with optional trailing slash or query/hash
-        const isDiscourseUsersPage = /\/discourse\/users\/?(.*)?$/.test(currentPath);
+        // Match /discourse/users with optional trailing slash or query/hash, but exclude /debug
+        const isDiscourseUsersPage = /\/discourse\/users\/?(.*)?$/.test(currentPath) && 
+                                     !currentPath.includes('/discourse/users/debug');
         
         if (isDiscourseUsersPage) {
           // Hide any Discourse error banners/content before rendering our UI
