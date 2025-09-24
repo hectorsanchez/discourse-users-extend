@@ -196,8 +196,8 @@ after_initialize do
       end
 
       begin
-        # For specific country, we need to get more users to find users from that country
-        # Use multiple directory calls to get better coverage
+        # Use the same approach that worked for getting countries list
+        # Get users from multiple time periods to get better coverage
         all_users = []
         
         # Get users from different time periods to get better coverage
@@ -240,13 +240,13 @@ after_initialize do
         
         Rails.logger.info "Total unique users collected: #{unique_users.length}"
         
-        # Process users and filter by country
+        # Get individual user data to access location field and filter by country
         processed_users = []
         unique_users.each do |user_item|
           begin
             username = user_item['user']['username']
             
-            # Get individual user data to access location field
+            # Get individual user data
             user_url = "#{discourse_url}/users/#{username}.json"
             user_uri = URI(user_url)
             user_http = Net::HTTP.new(user_uri.host, user_uri.port)
