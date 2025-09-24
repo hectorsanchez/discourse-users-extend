@@ -79,6 +79,8 @@ after_initialize do
             user_data = user_item['user']
             location = user_data['location'] || ""
             
+            Rails.logger.info "User #{user_data['username']}: location='#{location}'"
+            
             # Extract country
             if location.present?
               if location.include?(',')
@@ -87,9 +89,16 @@ after_initialize do
                 country = location.strip
               end
               
+              Rails.logger.info "  -> Extracted country: '#{country}'"
+              
               if country.present? && country != "No country"
                 countries_set.add(country)
+                Rails.logger.info "  -> Added to countries set: '#{country}'"
+              else
+                Rails.logger.info "  -> Skipped country: '#{country}' (empty or 'No country')"
               end
+            else
+              Rails.logger.info "  -> No location data"
             end
           rescue => e
             Rails.logger.error "Error processing user #{user_item['user']['username']}: #{e.message}"
@@ -98,7 +107,13 @@ after_initialize do
         
         countries = countries_set.to_a.sort
         
-        Rails.logger.info "Countries found: #{countries}"
+        # Debug: Show first few users' data structure
+        Rails.logger.info "=== DEBUGGING USER DATA STRUCTURE ==="
+        unique_users.first(3).each_with_index do |user_item, index|
+          Rails.logger.info "User #{index + 1} full data: #{user_item.inspect}"
+        end
+        
+        Rails.logger.info "Final countries list: #{countries}"
         
         render json: { 
           success: true, 
