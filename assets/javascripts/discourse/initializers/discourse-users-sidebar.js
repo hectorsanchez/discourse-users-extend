@@ -303,12 +303,12 @@ function displayUsers(users) {
         </div>
         
         <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px; padding: 20px;">
-          ${countryUsers.map(user => `
+          ${countryUsers.map((user, index) => `
             <div style="display: flex; align-items: center; gap: 15px; padding: 15px; background: var(--secondary); border: 1px solid var(--primary-low); border-radius: 4px;">
               <div style="flex-shrink: 0;">
                 ${user.avatar_template ? 
-                  `<img src="${user.avatar_template.replace('{size}', '48')}" alt="Avatar" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                   <div style="width: 48px; height: 48px; border-radius: 50%; background: var(--primary); color: var(--secondary); display: none; align-items: center; justify-content: center; font-weight: 600; font-size: 1.2em;">
+                  `<img data-avatar-src="${user.avatar_template.replace('{size}', '48')}" data-user-index="${index}" data-user-initials="${getInitials(user.firstname, user.lastname)}" alt="Avatar" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover; display: none;">
+                   <div data-fallback-avatar="${index}" style="width: 48px; height: 48px; border-radius: 50%; background: var(--primary); color: var(--secondary); display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 1.2em;">
                    ${getInitials(user.firstname, user.lastname)}
                    </div>` :
                   `<div style="width: 48px; height: 48px; border-radius: 50%; background: var(--primary); color: var(--secondary); display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 1.2em;">
@@ -332,12 +332,87 @@ function displayUsers(users) {
   });
   
   content.innerHTML = html;
+  
+  // Initialize lazy loading for avatars
+  initializeAvatarLoading();
 }
 
 function getInitials(firstname, lastname) {
   const first = firstname ? firstname.charAt(0).toUpperCase() : '';
   const last = lastname ? lastname.charAt(0).toUpperCase() : '';
   return first + last || '?';
+}
+
+// Avatar loading management
+let avatarLoadQueue = [];
+let isAvatarLoading = false;
+const AVATAR_BATCH_SIZE = 10;
+const AVATAR_LOAD_DELAY = 200; // ms between batches
+
+function initializeAvatarLoading() {
+  // Collect all avatar images that need to be loaded
+  const avatarImages = document.querySelectorAll('img[data-avatar-src]');
+  avatarLoadQueue = Array.from(avatarImages);
+  
+  console.log(`Found ${avatarLoadQueue.length} avatars to load`);
+  
+  // Start loading avatars in batches
+  loadAvatarsInBatches();
+}
+
+function loadAvatarsInBatches() {
+  if (isAvatarLoading || avatarLoadQueue.length === 0) {
+    return;
+  }
+  
+  isAvatarLoading = true;
+  
+  // Take a batch of avatars
+  const batch = avatarLoadQueue.splice(0, AVATAR_BATCH_SIZE);
+  
+  console.log(`Loading batch of ${batch.length} avatars`);
+  
+  // Load each avatar in the batch
+  batch.forEach((img, index) => {
+    setTimeout(() => {
+      loadSingleAvatar(img);
+    }, index * 50); // Small delay between individual avatars
+  });
+  
+  // Schedule next batch
+  setTimeout(() => {
+    isAvatarLoading = false;
+    if (avatarLoadQueue.length > 0) {
+      loadAvatarsInBatches();
+    }
+  }, AVATAR_LOAD_DELAY);
+}
+
+function loadSingleAvatar(img) {
+  const src = img.getAttribute('data-avatar-src');
+  const userIndex = img.getAttribute('data-user-index');
+  const fallbackDiv = document.querySelector(`[data-fallback-avatar="${userIndex}"]`);
+  
+  if (!src || !fallbackDiv) {
+    console.warn('Missing avatar data for image:', img);
+    return;
+  }
+  
+  // Set up error handling
+  img.addEventListener('error', function() {
+    console.log(`Avatar failed to load for user ${userIndex}, showing initials`);
+    this.style.display = 'none';
+    fallbackDiv.style.display = 'flex';
+  });
+  
+  img.addEventListener('load', function() {
+    console.log(`Avatar loaded successfully for user ${userIndex}`);
+    this.style.display = 'block';
+    fallbackDiv.style.display = 'none';
+  });
+  
+  // Set the source to trigger loading
+  img.src = src;
 }
 
 function clearFilters() {
