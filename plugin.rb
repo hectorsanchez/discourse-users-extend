@@ -115,11 +115,25 @@ after_initialize do
         
         Rails.logger.info "Final countries list: #{countries}"
         
+        # Debug: Show sample user data in response
+        sample_users = unique_users.first(3).map do |user_item|
+          {
+            username: user_item['user']['username'],
+            location: user_item['user']['location'],
+            name: user_item['user']['name']
+          }
+        end
+        
         render json: { 
           success: true, 
           countries: countries,
           total_countries: countries.length,
           total_users_checked: unique_users.length,
+          debug_info: {
+            sample_users: sample_users,
+            countries_found: countries,
+            users_with_location: unique_users.count { |u| u['user']['location'].present? }
+          },
           timestamp: Time.current.iso8601
         }
       rescue => e
