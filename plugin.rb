@@ -496,8 +496,8 @@ after_initialize do
   # Registrar las rutas
   Discourse::Application.routes.append do
     get '/discourse/users' => 'discourse_users#index'  # Get list of countries
+    get '/discourse/users/debug' => 'discourse_users#debug'  # Debug endpoint for analysis (MUST be before :country)
     get '/discourse/users/:country' => 'discourse_users#users'  # Get users by country
-    get '/discourse/users/debug' => 'discourse_users#debug'  # Debug endpoint for analysis
     post '/discourse/save_settings' => 'discourse_users#save_settings'
   end
 end
