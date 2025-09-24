@@ -113,12 +113,23 @@ after_initialize do
           country_distribution[country] = users.length
         end
         
+        # Debug: Show sample data from groups endpoint
+        sample_groups_data = nil
+        if !$users_by_country_cache.empty?
+          sample_user = $users_by_country_cache.values.flatten.first
+          sample_groups_data = {
+            sample_user: sample_user,
+            available_fields: sample_user.keys
+          }
+        end
+        
         render json: {
           success: true,
           timestamp: Time.current.iso8601,
           cache_info: cache_info,
           config_info: config_info,
           country_distribution: country_distribution,
+          sample_data: sample_groups_data,
           message: "Debug endpoint working - check cache status and configuration"
         }
         
@@ -175,48 +186,85 @@ after_initialize do
           return
       end
       
-      # Get users from multiple time periods to get better coverage
+      # Use groups endpoint to get ALL users (more complete than directory)
       all_users = []
-      periods = ['all', 'yearly', 'monthly', 'weekly', 'daily']
       
-      periods.each do |period|
-        directory_url = "#{discourse_url}/directory_items.json?order=created&period=#{period}&asc=true"
-        Rails.logger.info "Fetching users for period: #{period} from #{directory_url}"
+      # Get users from trust level groups (covers all users)
+      trust_levels = ['trust_level_0', 'trust_level_1', 'trust_level_2', 'trust_level_3', 'trust_level_4']
+      
+      trust_levels.each do |trust_level|
+        # Use higher limit and pagination
+        offset = 0
+        limit = 1000
+        total_fetched = 0
         
-        require 'net/http'
-        require 'uri'
-        require 'json'
+        Rails.logger.info "Fetching users from trust level: #{trust_level}"
         
-        uri = URI(directory_url)
-        http = Net::HTTP.new(uri.host, uri.port)
-        http.use_ssl = true if uri.scheme == 'https'
-        http.read_timeout = 30
-        
-        request = Net::HTTP::Get.new(uri)
-        request['Api-Key'] = api_key
-        request['Api-Username'] = api_username
-        
-        start_time = Time.current
-        directory_response = http.request(request)
-        request_time = Time.current - start_time
-        
-        Rails.logger.info "Period #{period} request completed in #{request_time.round(2)}s, status: #{directory_response.code}"
-        
-        if directory_response.code.to_i == 200
-          directory_data = JSON.parse(directory_response.body)
-          users = directory_data['directory_items'] || []
-          all_users.concat(users)
-          Rails.logger.info "Period #{period}: #{users.length} users added (total so far: #{all_users.length})"
-        else
-          Rails.logger.warn "Failed to get users for period #{period}: #{directory_response.code} - #{directory_response.body[0..200]}"
+        loop do
+          groups_url = "#{discourse_url}/groups/#{trust_level}/members.json?limit=#{limit}&offset=#{offset}"
+          Rails.logger.info "Fetching from: #{groups_url}"
+          
+          require 'net/http'
+          require 'uri'
+          require 'json'
+          
+          uri = URI(groups_url)
+          http = Net::HTTP.new(uri.host, uri.port)
+          http.use_ssl = true if uri.scheme == 'https'
+          http.read_timeout = 30
+          
+          request = Net::HTTP::Get.new(uri)
+          request['Api-Key'] = api_key
+          request['Api-Username'] = api_username
+          
+          start_time = Time.current
+          groups_response = http.request(request)
+          request_time = Time.current - start_time
+          
+          Rails.logger.info "Trust level #{trust_level} request completed in #{request_time.round(2)}s, status: #{groups_response.code}"
+          
+          if groups_response.code.to_i == 200
+            groups_data = JSON.parse(groups_response.body)
+            users = groups_data['members'] || []
+            
+            if users.empty?
+              Rails.logger.info "No more users for trust level #{trust_level}, breaking loop"
+              break
+            end
+            
+            # Debug: Log sample user data from groups endpoint
+            if offset == 0 && users.any?
+              sample_user = users.first
+              Rails.logger.info "SAMPLE USER FROM GROUPS: #{sample_user.inspect}"
+              Rails.logger.info "Available fields in groups response: #{sample_user.keys}"
+            end
+            
+            all_users.concat(users)
+            total_fetched += users.length
+            offset += limit
+            
+            Rails.logger.info "Trust level #{trust_level}: #{users.length} users added (total for this level: #{total_fetched})"
+            
+            # If we got less than the limit, we've reached the end
+            if users.length < limit
+              Rails.logger.info "Reached end of users for trust level #{trust_level}"
+              break
+            end
+            
+          else
+            Rails.logger.warn "Failed to get users for trust level #{trust_level}: #{groups_response.code} - #{groups_response.body[0..200]}"
+            break
+          end
+          
+          sleep(0.3) # Small delay to avoid rate limiting
         end
         
-        sleep(0.5) # Small delay to avoid rate limiting
+        Rails.logger.info "Completed trust level #{trust_level}: #{total_fetched} users"
       end
       
-      # Remove duplicates
-      unique_users = all_users.uniq { |u| u['user']['username'] }
-      Rails.logger.info "Directory fetch complete: #{all_users.length} total users, #{unique_users.length} unique users"
+      # Remove duplicates based on username
+      unique_users = all_users.uniq { |u| u['username'] }
+      Rails.logger.info "Groups fetch complete: #{all_users.length} total users, #{unique_users.length} unique users"
       
       # Process users and group by country
       $users_by_country_cache = {}
@@ -226,11 +274,11 @@ after_initialize do
       
       Rails.logger.info "Starting individual user data processing for #{unique_users.length} users..."
       
-      unique_users.each_with_index do |user_item, index|
-      begin
-          username = user_item['user']['username']
+      unique_users.each_with_index do |user_data, index|
+        begin
+          username = user_data['username']
           
-          # Get individual user data
+          # Get individual user data for location
           user_url = "#{discourse_url}/users/#{username}.json"
           user_uri = URI(user_url)
           user_http = Net::HTTP.new(user_uri.host, user_uri.port)
@@ -244,13 +292,13 @@ after_initialize do
           user_response = user_http.request(user_request)
           
           if user_response.code.to_i == 200
-            user_data = JSON.parse(user_response.body)['user']
-            location = user_data['location'] || ""
+            full_user_data = JSON.parse(user_response.body)['user']
+            location = full_user_data['location'] || ""
             
             # Extract country
             user_country = "No country"
             if location.present?
-                if location.include?(',')
+              if location.include?(',')
                 user_country = location.split(',').last.strip
               else
                 user_country = location.strip
@@ -266,12 +314,12 @@ after_initialize do
               firstname: firstname,
               lastname: lastname,
               email: user_data['email'],
-                username: user_data['username'],
-                location: location,
+              username: user_data['username'],
+              location: location,
               country: user_country,
-                trust_level: user_data['trust_level'],
-                avatar_template: user_data['avatar_template']
-              }
+              trust_level: user_data['trust_level'],
+              avatar_template: user_data['avatar_template']
+            }
             
             # Add to cache by country
             $users_by_country_cache[user_country] ||= []
@@ -279,8 +327,8 @@ after_initialize do
             countries_found.add(user_country)
             processed_count += 1
             
-            # Log progress every 50 users
-            if (index + 1) % 50 == 0
+            # Log progress every 100 users
+            if (index + 1) % 100 == 0
               Rails.logger.info "Progress: #{index + 1}/#{unique_users.length} users processed, #{countries_found.size} countries found"
             end
           else
@@ -288,12 +336,12 @@ after_initialize do
             error_count += 1
           end
           
-          sleep(0.1) # Small delay to avoid rate limiting
-      rescue => e
+          sleep(0.05) # Reduced delay since we have more users
+        rescue => e
           Rails.logger.error "Error processing user #{username}: #{e.message}"
           error_count += 1
+        end
       end
-    end
 
       $cache_last_updated = Time.current
       Rails.logger.info "=== DISCOURSE USERS CACHE - LOAD COMPLETE ==="
