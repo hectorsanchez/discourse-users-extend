@@ -346,8 +346,9 @@ function getInitials(firstname, lastname) {
 // Avatar loading management
 let avatarLoadQueue = [];
 let isAvatarLoading = false;
-const AVATAR_BATCH_SIZE = 10;
-const AVATAR_LOAD_DELAY = 200; // ms between batches
+const AVATAR_BATCH_SIZE = 3; // Reduced from 10 to 3
+const AVATAR_LOAD_DELAY = 1000; // Increased from 200ms to 1000ms (1 second)
+const AVATAR_INDIVIDUAL_DELAY = 200; // Delay between individual avatars in a batch
 
 function initializeAvatarLoading() {
   // Collect all avatar images that need to be loaded
@@ -376,7 +377,7 @@ function loadAvatarsInBatches() {
   batch.forEach((img, index) => {
     setTimeout(() => {
       loadSingleAvatar(img);
-    }, index * 50); // Small delay between individual avatars
+    }, index * AVATAR_INDIVIDUAL_DELAY); // Use the new delay constant
   });
   
   // Schedule next batch
@@ -398,22 +399,29 @@ function loadSingleAvatar(img) {
     return;
   }
   
+  // Remove any existing event listeners to prevent duplicates
+  img.removeEventListener('error', img._errorHandler);
+  img.removeEventListener('load', img._loadHandler);
+  
   // Set up error handling
-  img.addEventListener('error', function() {
+  img._errorHandler = function() {
     console.log(`Avatar failed to load for user ${userIndex}, showing initials`);
     this.style.display = 'none';
     fallbackDiv.style.display = 'flex';
     fallbackDiv.style.visibility = 'visible';
     fallbackDiv.style.opacity = '1';
-  });
+  };
   
-  img.addEventListener('load', function() {
+  img._loadHandler = function() {
     console.log(`Avatar loaded successfully for user ${userIndex}`);
     this.style.display = 'block';
     fallbackDiv.style.display = 'none';
     fallbackDiv.style.visibility = 'hidden';
     fallbackDiv.style.opacity = '0';
-  });
+  };
+  
+  img.addEventListener('error', img._errorHandler);
+  img.addEventListener('load', img._loadHandler);
   
   // Set the source to trigger loading
   img.src = src;
