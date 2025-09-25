@@ -205,20 +205,14 @@ after_initialize do
     private
     
     def load_cache_if_needed
-      # Load cache if empty or older than 1 hour
+      # Only load cache if completely empty (not if old)
       cache_empty = $users_by_country_cache.empty?
-      cache_old = $cache_last_updated.nil? || (Time.current - $cache_last_updated) > 1.hour
       cache_loading = $cache_loading
       
-      Rails.logger.info "DISCOURSE USERS: Cache check - empty=#{cache_empty}, old=#{cache_old}, loading=#{cache_loading}"
+      Rails.logger.info "DISCOURSE USERS: Cache check - empty=#{cache_empty}, loading=#{cache_loading}"
       
-      if cache_empty || cache_old || cache_loading
-        if cache_loading
-          Rails.logger.info "DISCOURSE USERS: Cache is already loading, skipping"
-          return # Already loading
-        end
-        
-        Rails.logger.info "DISCOURSE USERS: Cache needs loading - starting load process"
+      if cache_empty && !cache_loading
+        Rails.logger.info "DISCOURSE USERS: Cache is empty, starting load process"
         $cache_loading = true
         begin
           load_users_cache
@@ -226,8 +220,10 @@ after_initialize do
           $cache_loading = false
           Rails.logger.info "DISCOURSE USERS: Cache loading process completed"
         end
+      elsif cache_loading
+        Rails.logger.info "DISCOURSE USERS: Cache is already loading, skipping"
       else
-        Rails.logger.info "DISCOURSE USERS: Cache is fresh, no loading needed"
+        Rails.logger.info "DISCOURSE USERS: Cache exists, no loading needed"
       end
     end
 
