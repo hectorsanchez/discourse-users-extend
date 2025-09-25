@@ -23,7 +23,9 @@ echo ""
 cd /var/discourse
 
 # Ejecutar el script de carga optimizada
-sudo docker exec -it $(sudo docker ps -q) rails runner "
+sudo docker exec -it -e BATCHES_TO_PROCESS="$BATCHES_TO_PROCESS" $(sudo docker ps -q) rails runner "
+# Pasar parámetro como variable de entorno
+BATCHES_TO_PROCESS = ENV['BATCHES_TO_PROCESS'] || 'all'
 puts '=== INICIANDO CARGA OPTIMIZADA DE CACHE ==='
 puts 'Fecha: ' + Time.current.to_s
 puts 'Estrategia: Lotes de 60 usuarios, pausa de 1 minuto entre lotes'
