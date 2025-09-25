@@ -245,7 +245,7 @@ after_initialize do
               break
             end
             
-            sleep(0.5) # Small delay to avoid rate limiting
+            sleep(1.0) # Increased delay to avoid rate limiting
           end
           
           Rails.logger.info "Completed trust level #{trust_level}"
@@ -325,7 +325,7 @@ after_initialize do
               error_count += 1
             end
             
-            sleep(0.05) # Small delay to avoid rate limiting
+            sleep(0.2) # Increased delay to avoid rate limiting
           rescue => e
             Rails.logger.error "Error processing user #{username}: #{e.message}"
             error_count += 1
