@@ -319,13 +319,13 @@ after_initialize do
         Rails.logger.info "Starting optimized processing: batches of 60 users with 1-minute delays"
         
         # Configuration
-        BATCH_SIZE = 60
-        BATCH_DELAY = 60  # 1 minute between batches
-        USER_DELAY = 0.5  # 500ms between users
+        batch_size = 60
+        batch_delay = 60  # 1 minute between batches
+        user_delay = 0.5  # 500ms between users
         
         # Split users into batches
-        user_batches = unique_users.each_slice(BATCH_SIZE).to_a
-        Rails.logger.info "Total batches: #{user_batches.length}, estimated time: #{(user_batches.length * BATCH_DELAY / 60).round(1)} minutes"
+        user_batches = unique_users.each_slice(batch_size).to_a
+        Rails.logger.info "Total batches: #{user_batches.length}, estimated time: #{(user_batches.length * batch_delay / 60).round(1)} minutes"
         
         $users_by_country_cache = {}
         processed_count = 0
@@ -373,7 +373,7 @@ after_initialize do
               end
               
               # Delay between users
-              sleep(USER_DELAY)
+              sleep(user_delay)
               
             rescue => e
               Rails.logger.error "Error processing user #{user_data['username']}: #{e.message}"
@@ -386,8 +386,8 @@ after_initialize do
           
           # Pause between batches (except the last one)
           if batch_index < user_batches.length - 1
-            Rails.logger.info "Pause of #{BATCH_DELAY} seconds until next batch..."
-            sleep(BATCH_DELAY)
+            Rails.logger.info "Pause of #{batch_delay} seconds until next batch..."
+            sleep(batch_delay)
           end
         end
         
