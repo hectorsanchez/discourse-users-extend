@@ -8,9 +8,6 @@ after_initialize do
   $users_by_country_cache = {}
   $cache_last_updated = nil
   $cache_loading = false
-  
-  # Cargar cache desde disco si existe
-  load_cache_from_disk
 
   # Controlador simple sin Engine
   class ::DiscourseUsersController < ::ApplicationController
@@ -27,21 +24,41 @@ after_initialize do
       Rails.logger.info "DISCOURSE USERS: Index request received"
       Rails.logger.info "Cache status before load: empty=#{$users_by_country_cache.empty?}, last_updated=#{$cache_last_updated}"
       
+      # Load cache from disk if empty
+      if $users_by_country_cache.empty?
+        load_cache_from_disk
+      end
+      
       # Load cache if empty or old
-      load_cache_if_needed
+      cache_available = load_cache_if_needed
       
-      # Get countries from cache
-      countries = $users_by_country_cache.keys.reject { |c| c == "No country" }.sort
-      
-      Rails.logger.info "DISCOURSE USERS: Returning #{countries.length} countries: #{countries.join(', ')}"
-      
-      render json: { 
-        success: true, 
-        countries: countries,
-        total_countries: countries.length,
-        cache_updated: $cache_last_updated,
-        timestamp: Time.current.iso8601
-      }
+      if cache_available
+        # Get countries from cache
+        countries = $users_by_country_cache.keys.reject { |c| c == "No country" }.sort
+        
+        Rails.logger.info "DISCOURSE USERS: Returning #{countries.length} countries: #{countries.join(', ')}"
+        
+        render json: { 
+          success: true, 
+          countries: countries,
+          total_countries: countries.length,
+          cache_updated: $cache_last_updated,
+          timestamp: Time.current.iso8601
+        }
+      else
+        # Cache not available
+        Rails.logger.warn "DISCOURSE USERS: Cache not available, returning error"
+        
+        render json: { 
+          success: false, 
+          error: "Cache not available. Please run the cache generation script manually.",
+          message: "To generate cache, run: sudo ./load-users-cache-optimized.sh all",
+          countries: [],
+          total_countries: 0,
+          cache_updated: nil,
+          timestamp: Time.current.iso8601
+        }
+      end
     end
     
     def users
@@ -59,22 +76,43 @@ after_initialize do
       response.headers['Content-Type'] = 'application/json'
       response.headers['Access-Control-Allow-Origin'] = '*'
       
+      # Load cache from disk if empty
+      if $users_by_country_cache.empty?
+        load_cache_from_disk
+      end
+      
       # Load cache if empty or old
-      load_cache_if_needed
+      cache_available = load_cache_if_needed
       
-      # Get users from cache
-      users = $users_by_country_cache[country] || []
-      
-      Rails.logger.info "DISCOURSE USERS: Returning #{users.length} users for country '#{country}'"
-      
-      render json: { 
-        success: true, 
-        users: users,
-        country: country,
-        total_users: users.length,
-        cache_updated: $cache_last_updated,
-        timestamp: Time.current.iso8601
-      }
+      if cache_available
+        # Get users from cache
+        users = $users_by_country_cache[country] || []
+        
+        Rails.logger.info "DISCOURSE USERS: Returning #{users.length} users for country '#{country}'"
+        
+        render json: { 
+          success: true, 
+          users: users,
+          country: country,
+          total_users: users.length,
+          cache_updated: $cache_last_updated,
+          timestamp: Time.current.iso8601
+        }
+      else
+        # Cache not available
+        Rails.logger.warn "DISCOURSE USERS: Cache not available, returning error"
+        
+        render json: { 
+          success: false, 
+          error: "Cache not available. Please run the cache generation script manually.",
+          message: "To generate cache, run: sudo ./load-users-cache-optimized.sh all",
+          users: [],
+          country: country,
+          total_users: 0,
+          cache_updated: nil,
+          timestamp: Time.current.iso8601
+        }
+      end
     end
 
     def save_settings
@@ -251,19 +289,16 @@ after_initialize do
       
       Rails.logger.info "DISCOURSE USERS: Cache check - empty=#{cache_empty}, loading=#{cache_loading}"
       
-      if cache_empty && !cache_loading
-        Rails.logger.info "DISCOURSE USERS: Cache is empty, starting load process"
-        $cache_loading = true
-        begin
-          load_users_cache
-        ensure
-          $cache_loading = false
-          Rails.logger.info "DISCOURSE USERS: Cache loading process completed"
-        end
+      if cache_empty
+        Rails.logger.warn "DISCOURSE USERS: Cache is empty - no automatic generation"
+        Rails.logger.warn "DISCOURSE USERS: Please run the cache generation script manually"
+        return false  # Indicate cache is not available
       elsif cache_loading
         Rails.logger.info "DISCOURSE USERS: Cache is already loading, skipping"
+        return false
       else
         Rails.logger.info "DISCOURSE USERS: Cache exists, no loading needed"
+        return true  # Cache is available
       end
     end
 
