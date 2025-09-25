@@ -294,6 +294,17 @@ puts \"Usuarios por país:\"
   puts \"  #{country}: #{users.length} usuarios\"
 end
 
+# Guardar cache en disco
+cache_file_path = Rails.root.join('tmp', 'discourse_users_cache.json')
+cache_data = {
+  users_by_country: \$users_by_country_cache,
+  cache_updated: \$cache_last_updated,
+  cache_loading: false
+}
+
+File.write(cache_file_path, JSON.generate(cache_data))
+puts \"Cache guardado en disco: #{cache_file_path}\"
+
 puts \"\"
 puts \"=== CACHE CARGADO EXITOSAMENTE ===\"
 puts \"Fecha de finalización: #{Time.current}\"

@@ -8,6 +8,9 @@ after_initialize do
   $users_by_country_cache = {}
   $cache_last_updated = nil
   $cache_loading = false
+  
+  # Cargar cache desde disco si existe
+  load_cache_from_disk
 
   # Controlador simple sin Engine
   class ::DiscourseUsersController < ::ApplicationController
@@ -204,6 +207,43 @@ after_initialize do
                 
     private
     
+    def cache_file_path
+      Rails.root.join('tmp', 'discourse_users_cache.json')
+    end
+    
+    def save_cache_to_disk
+      begin
+        cache_data = {
+          users_by_country: $users_by_country_cache,
+          cache_updated: $cache_last_updated,
+          cache_loading: $cache_loading
+        }
+        
+        File.write(cache_file_path, JSON.generate(cache_data))
+        Rails.logger.info "DISCOURSE USERS: Cache saved to disk at #{cache_file_path}"
+      rescue => e
+        Rails.logger.error "DISCOURSE USERS: Error saving cache to disk: #{e.message}"
+      end
+    end
+    
+    def load_cache_from_disk
+      begin
+        if File.exist?(cache_file_path)
+          cache_data = JSON.parse(File.read(cache_file_path))
+          
+          $users_by_country_cache = cache_data['users_by_country'] || {}
+          $cache_last_updated = cache_data['cache_updated'] ? Time.parse(cache_data['cache_updated']) : nil
+          $cache_loading = cache_data['cache_loading'] || false
+          
+          Rails.logger.info "DISCOURSE USERS: Cache loaded from disk - #{$users_by_country_cache.keys.length} countries, #{$users_by_country_cache.values.flatten.length} users"
+        else
+          Rails.logger.info "DISCOURSE USERS: No cache file found at #{cache_file_path}"
+        end
+      rescue => e
+        Rails.logger.error "DISCOURSE USERS: Error loading cache from disk: #{e.message}"
+      end
+    end
+    
     def load_cache_if_needed
       # Only load cache if completely empty (not if old)
       cache_empty = $users_by_country_cache.empty?
@@ -394,6 +434,9 @@ after_initialize do
         Rails.logger.info "  - Users processed: #{processed_count}"
         Rails.logger.info "  - Errors encountered: #{error_count}"
         Rails.logger.info "  - Cache timestamp: #{$cache_last_updated}"
+        
+        # Guardar cache en disco
+        save_cache_to_disk
         
       rescue => e
         Rails.logger.error "=== CACHE LOAD ERROR ==="
