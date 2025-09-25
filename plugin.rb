@@ -83,6 +83,66 @@ after_initialize do
       render json: { success: true }
     end
 
+    def update_cache
+      response.headers['Content-Type'] = 'application/json'
+      response.headers['Access-Control-Allow-Origin'] = '*'
+      
+      Rails.logger.info "DISCOURSE USERS: Update cache endpoint accessed"
+      
+      # Verificar autenticación
+      unless current_user&.admin?
+        Rails.logger.warn "DISCOURSE USERS: Unauthorized cache update attempt by #{current_user&.username || 'anonymous'}"
+        return render json: { error: "Unauthorized" }, status: 401
+      end
+      
+      Rails.logger.info "DISCOURSE USERS: Manual cache update requested by admin #{current_user.username}"
+      
+      # Verificar si ya está cargando
+      if $cache_loading
+        Rails.logger.warn "DISCOURSE USERS: Cache update already in progress, skipping"
+        return render json: { 
+          success: false, 
+          message: "Cache update already in progress",
+          timestamp: Time.current.iso8601
+        }
+      end
+      
+      # Limpiar cache actual
+      Rails.logger.info "DISCOURSE USERS: Clearing existing cache"
+      $users_by_country_cache = {}
+      $cache_last_updated = nil
+      $cache_loading = false
+      
+      # Iniciar actualización en background
+      Rails.logger.info "DISCOURSE USERS: Starting background thread for cache update"
+      Thread.new do
+        begin
+          Rails.logger.info "DISCOURSE USERS: Background cache update thread started"
+          load_users_cache
+          Rails.logger.info "DISCOURSE USERS: Background cache update completed successfully"
+        rescue => e
+          Rails.logger.error "DISCOURSE USERS: Background cache update failed: #{e.message}"
+          Rails.logger.error "DISCOURSE USERS: Backtrace: #{e.backtrace.first(5).join("\n")}"
+        ensure
+          $cache_loading = false
+          Rails.logger.info "DISCOURSE USERS: Background thread completed, cache_loading set to false"
+        end
+      end
+      
+      Rails.logger.info "DISCOURSE USERS: Cache update initiated, returning response"
+      render json: { 
+        success: true, 
+        message: "Cache update started in background. This may take 3-4 minutes.",
+        timestamp: Time.current.iso8601,
+        estimated_completion: (Time.current + 4.minutes).iso8601,
+        cache_status: {
+          loading: $cache_loading,
+          last_updated: $cache_last_updated,
+          countries_count: $users_by_country_cache.keys.length
+        }
+      }
+    end
+
     def debug
       # Endpoint de diagnóstico simplificado
       response.headers['Content-Type'] = 'application/json'
@@ -245,7 +305,7 @@ after_initialize do
               break
             end
             
-            sleep(0.8) # Optimized delay to avoid rate limiting
+            sleep(1.5) # Conservative delay for mass processing to avoid rate limiting
           end
           
           Rails.logger.info "Completed trust level #{trust_level}"
@@ -325,7 +385,7 @@ after_initialize do
               error_count += 1
             end
             
-            sleep(0.15) # Optimized delay to avoid rate limiting
+            sleep(0.3) # Conservative delay for mass processing to avoid rate limiting
           rescue => e
             Rails.logger.error "Error processing user #{username}: #{e.message}"
             error_count += 1
@@ -356,5 +416,6 @@ after_initialize do
     get '/discourse/users/debug' => 'discourse_users#debug'  # Debug endpoint for analysis (MUST be before :country)
     get '/discourse/users/:country' => 'discourse_users#users'  # Get users by country
     post '/discourse/save_settings' => 'discourse_users#save_settings'
+    post '/discourse/users/update_cache' => 'discourse_users#update_cache'  # Manual cache update
   end
 end
