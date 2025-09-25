@@ -28,34 +28,46 @@ BATCH_SIZE = 60
 BATCH_DELAY = 60  # 1 minuto entre lotes
 USER_DELAY = 0.5  # 500ms entre usuarios
 
-# Función para hacer petición individual
-def fetch_user_location(username, api_key, api_username, discourse_url)
-  begin
-    user_url = \"#{discourse_url.chomp('/')}/users/#{username}.json\"
-    
-    uri = URI(user_url)
-    http = Net::HTTP.new(uri.host, uri.port)
-    http.use_ssl = true if uri.scheme == 'https'
-    
-    request = Net::HTTP::Get.new(uri)
-    request['Api-Key'] = api_key
-    request['Api-Username'] = api_username
-    
-    response = http.request(request)
-    
-    if response.code == '200'
-      user_data = JSON.parse(response.body)
-      location = user_data['user']&.dig('location') || ''
-      puts \"  ✅ #{username}: #{location.empty? ? 'Sin ubicación' : location}\"
-      return location
-    else
-      puts \"  ❌ #{username}: Error #{response.code}\"
+# Función para hacer petición individual con reintento
+def fetch_user_location_with_retry(username, api_key, api_username, discourse_url, max_retries = 3)
+  retries = 0
+  
+  while retries < max_retries
+    begin
+      user_url = \"#{discourse_url.chomp('/')}/users/#{username}.json\"
+      
+      uri = URI(user_url)
+      http = Net::HTTP.new(uri.host, uri.port)
+      http.use_ssl = true if uri.scheme == 'https'
+      
+      request = Net::HTTP::Get.new(uri)
+      request['Api-Key'] = api_key
+      request['Api-Username'] = api_username
+      
+      response = http.request(request)
+      
+      if response.code == '200'
+        user_data = JSON.parse(response.body)
+        location = user_data['user']&.dig('location') || ''
+        puts \"  ✅ #{username}: #{location.empty? ? 'Sin ubicación' : location}\"
+        return location
+      elsif response.code == '429'
+        retries += 1
+        wait_time = 30 * retries  # 30s, 60s, 90s
+        puts \"  ⚠️ #{username}: Rate limit (429), esperando #{wait_time}s (intento #{retries}/#{max_retries})\"
+        sleep(wait_time)
+      else
+        puts \"  ❌ #{username}: Error #{response.code}\"
+        return ''
+      end
+    rescue => e
+      puts \"  ❌ #{username}: Exception #{e.message}\"
       return ''
     end
-  rescue => e
-    puts \"  ❌ #{username}: Exception #{e.message}\"
-    return ''
   end
+  
+  puts \"  ❌ #{username}: Falló después de #{max_retries} intentos\"
+  return ''
 end
 
 # Función para extraer solo el país
@@ -190,8 +202,8 @@ user_batches.each_with_index do |batch, batch_index|
       username = user_data['username']
       puts \"Usuario #{user_index + 1}/#{batch.length}: #{username}\"
       
-      # Hacer petición individual
-      location = fetch_user_location(username, api_key, api_username, discourse_url)
+      # Hacer petición individual con reintento
+      location = fetch_user_location_with_retry(username, api_key, api_username, discourse_url)
       
       if !location.nil?
         # Extraer país
