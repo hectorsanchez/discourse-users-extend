@@ -1,11 +1,23 @@
 #!/bin/bash
 # Script para cargar cache de usuarios con estrategia optimizada
 # Lotes de 60 usuarios con 1 minuto de pausa entre lotes
+# Uso: ./load-users-cache-optimized.sh [número_de_lotes]
+# Ejemplo: ./load-users-cache-optimized.sh 3  (procesa solo 3 lotes)
+# Sin parámetro: procesa todos los lotes
+
+# Obtener número de lotes a procesar
+BATCHES_TO_PROCESS=${1:-"all"}
 
 echo "=== INICIANDO CARGA OPTIMIZADA DE CACHE ==="
 echo "Fecha: $(date)"
 echo "Estrategia: Lotes de 60 usuarios, pausa de 1 minuto entre lotes"
-echo "Tiempo estimado: ~11 minutos"
+if [ "$BATCHES_TO_PROCESS" = "all" ]; then
+  echo "Lotes a procesar: TODOS"
+  echo "Tiempo estimado: ~11 minutos"
+else
+  echo "Lotes a procesar: $BATCHES_TO_PROCESS"
+  echo "Tiempo estimado: ~$((BATCHES_TO_PROCESS * 1)) minutos"
+fi
 echo ""
 
 cd /var/discourse
@@ -185,16 +197,30 @@ puts \"Pausa de #{BATCH_DELAY} segundos entre lotes\"
 puts \"Tiempo estimado: #{(unique_users.length / BATCH_SIZE.to_f * BATCH_DELAY / 60).round(1)} minutos\"
 
 user_batches = unique_users.each_slice(BATCH_SIZE).to_a
-puts \"Total de lotes: #{user_batches.length}\"
+puts \"Total de lotes disponibles: #{user_batches.length}\"
+
+# Determinar cuántos lotes procesar
+if \"#{BATCHES_TO_PROCESS}\" == \"all\"
+  batches_to_process = user_batches.length
+  puts \"Procesando TODOS los lotes: #{batches_to_process}\"
+else
+  batches_to_process = \"#{BATCHES_TO_PROCESS}\".to_i
+  if batches_to_process > user_batches.length
+    batches_to_process = user_batches.length
+    puts \"Ajustando a #{batches_to_process} lotes (máximo disponible)\"
+  else
+    puts \"Procesando #{batches_to_process} lotes de #{user_batches.length} disponibles\"
+  end
+end
 
 \$users_by_country_cache = {}
 processed_count = 0
 error_count = 0
 countries_found = Set.new
 
-user_batches.each_with_index do |batch, batch_index|
+user_batches.first(batches_to_process).each_with_index do |batch, batch_index|
   puts \"\"
-  puts \"=== LOTE #{batch_index + 1}/#{user_batches.length} ===\"
+  puts \"=== LOTE #{batch_index + 1}/#{batches_to_process} ===\"
   puts \"Procesando #{batch.length} usuarios...\"
   
   batch.each_with_index do |user_data, user_index|
@@ -245,7 +271,7 @@ user_batches.each_with_index do |batch, batch_index|
   puts \"Países encontrados: #{countries_found.size}\"
   
   # Pausa entre lotes (excepto el último)
-  if batch_index < user_batches.length - 1
+  if batch_index < batches_to_process - 1
     puts \"Pausa de #{BATCH_DELAY} segundos hasta el siguiente lote...\"
     sleep(BATCH_DELAY)
   end
