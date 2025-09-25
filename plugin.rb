@@ -305,7 +305,7 @@ after_initialize do
               break
             end
             
-            sleep(1.5) # Conservative delay for mass processing to avoid rate limiting
+            sleep(2.0) # Increased delay for mass processing to avoid rate limiting
           end
           
           Rails.logger.info "Completed trust level #{trust_level}"
@@ -385,7 +385,12 @@ after_initialize do
               error_count += 1
             end
             
-            sleep(0.3) # Conservative delay for mass processing to avoid rate limiting
+            # Progressive delay: start with 0.2s, increase to 1.0s as we process more users
+            base_delay = 0.2
+            progressive_delay = base_delay + (index * 0.001) # Increase by 0.001s per user
+            final_delay = [progressive_delay, 1.0].min # Cap at 1.0s
+            
+            sleep(final_delay)
           rescue => e
             Rails.logger.error "Error processing user #{username}: #{e.message}"
             error_count += 1
