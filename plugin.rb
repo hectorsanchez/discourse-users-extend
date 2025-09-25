@@ -232,7 +232,7 @@ after_initialize do
     end
 
     def load_users_cache
-      Rails.logger.info "=== DISCOURSE USERS CACHE - STARTING SIMPLE LOAD ==="
+      Rails.logger.info "=== DISCOURSE USERS CACHE - STARTING OPTIMIZED LOAD ==="
       
       begin
         api_key = SiteSetting.dmu_discourse_api_key
@@ -245,7 +245,7 @@ after_initialize do
           Rails.logger.error "DISCOURSE USERS CACHE ERROR: API Key and Discourse URL not configured properly"
           return
         end
-        
+
         # Use groups endpoint to get ALL users (more complete)
         all_users = []
         
@@ -315,90 +315,84 @@ after_initialize do
         unique_users = all_users.uniq { |u| u['username'] }
         Rails.logger.info "Groups fetch complete: #{all_users.length} total users, #{unique_users.length} unique users"
         
-        # Process users and group by country
+        # Process users with optimized strategy: batches of 60 with 1-minute delays
+        Rails.logger.info "Starting optimized processing: batches of 60 users with 1-minute delays"
+        
+        # Configuration
+        BATCH_SIZE = 60
+        BATCH_DELAY = 60  # 1 minute between batches
+        USER_DELAY = 0.5  # 500ms between users
+        
+        # Split users into batches
+        user_batches = unique_users.each_slice(BATCH_SIZE).to_a
+        Rails.logger.info "Total batches: #{user_batches.length}, estimated time: #{(user_batches.length * BATCH_DELAY / 60).round(1)} minutes"
+        
         $users_by_country_cache = {}
         processed_count = 0
         error_count = 0
         countries_found = Set.new
         
-        Rails.logger.info "Starting individual user data processing for #{unique_users.length} users..."
-        
-        unique_users.each_with_index do |user_data, index|
-          begin
-            username = user_data['username']
-            
-            # Get individual user data for location (fix URL construction)
-            user_url = "#{discourse_url.chomp('/')}/users/#{username}.json"
-            user_uri = URI(user_url)
-            user_http = Net::HTTP.new(user_uri.host, user_uri.port)
-            user_http.use_ssl = true if user_uri.scheme == 'https'
-            user_http.read_timeout = 30
-            
-            user_request = Net::HTTP::Get.new(user_uri)
-            user_request['Api-Key'] = api_key
-            user_request['Api-Username'] = api_username
-            
-            user_response = user_http.request(user_request)
-            
-            if user_response.code.to_i == 200
-              full_user_data = JSON.parse(user_response.body)['user']
-              location = full_user_data['location'] || ""
+        # Process each batch
+        user_batches.each_with_index do |batch, batch_index|
+          Rails.logger.info "=== BATCH #{batch_index + 1}/#{user_batches.length} ==="
+          Rails.logger.info "Processing #{batch.length} users..."
+          
+          batch.each_with_index do |user_data, user_index|
+            begin
+              username = user_data['username']
+              Rails.logger.info "User #{user_index + 1}/#{batch.length}: #{username}"
               
-              # Extract country
-              user_country = "No country"
-              if location.present?
-                if location.include?(',')
-                  user_country = location.split(',').last.strip
-                else
-                  user_country = location.strip
-                end
+              # Make individual API call to get location
+              location = fetch_user_location(username, api_key, api_username, discourse_url)
+              
+              if !location.nil?  # Only process if no error
+                # Extract country from location
+                country = extract_country_only(location)
+                
+                # Process user
+                name_parts = (user_data['name'] || "").split(' ')
+                firstname = name_parts.first || username
+                lastname = name_parts.drop(1).join(' ') || ""
+                
+                processed_user = {
+                  firstname: firstname,
+                  lastname: lastname,
+                  email: user_data['email'],
+                  username: username,
+                  location: location,
+                  country: country,
+                  trust_level: user_data['trust_level'],
+                  avatar_template: user_data['avatar_template']
+                }
+                
+                # Add to cache
+                $users_by_country_cache[country] ||= []
+                $users_by_country_cache[country] << processed_user
+                countries_found.add(country)
+                processed_count += 1
               end
               
-              # Split name safely
-              name_parts = (user_data['name'] || "").split(' ')
-              firstname = name_parts.first || user_data['username']
-              lastname = name_parts.drop(1).join(' ') || ""
+              # Delay between users
+              sleep(USER_DELAY)
               
-              processed_user = {
-                firstname: firstname,
-                lastname: lastname,
-                email: user_data['email'],
-                username: user_data['username'],
-                location: location,
-                country: user_country,
-                trust_level: user_data['trust_level'],
-                avatar_template: user_data['avatar_template']
-              }
-              
-              # Add to cache by country
-              $users_by_country_cache[user_country] ||= []
-              $users_by_country_cache[user_country] << processed_user
-              countries_found.add(user_country)
-              processed_count += 1
-              
-              # Log progress every 100 users
-              if (index + 1) % 100 == 0
-                Rails.logger.info "Progress: #{index + 1}/#{unique_users.length} users processed, #{countries_found.size} countries found"
-              end
-            else
-              Rails.logger.warn "Failed to get user data for #{username}: #{user_response.code}"
+            rescue => e
+              Rails.logger.error "Error processing user #{user_data['username']}: #{e.message}"
               error_count += 1
             end
-            
-            # Progressive delay: start with 0.2s, increase to 1.0s as we process more users
-            base_delay = 0.2
-            progressive_delay = base_delay + (index * 0.001) # Increase by 0.001s per user
-            final_delay = [progressive_delay, 1.0].min # Cap at 1.0s
-            
-            sleep(final_delay)
-          rescue => e
-            Rails.logger.error "Error processing user #{username}: #{e.message}"
-            error_count += 1
+          end
+          
+          Rails.logger.info "Batch #{batch_index + 1} completed. Users processed: #{processed_count}"
+          Rails.logger.info "Countries found: #{countries_found.size}"
+          
+          # Pause between batches (except the last one)
+          if batch_index < user_batches.length - 1
+            Rails.logger.info "Pause of #{BATCH_DELAY} seconds until next batch..."
+            sleep(BATCH_DELAY)
           end
         end
         
         $cache_last_updated = Time.current
-        Rails.logger.info "=== GROUPS CACHE LOAD COMPLETE ==="
+        Rails.logger.info "=== OPTIMIZED CACHE LOAD COMPLETE ==="
         Rails.logger.info "Cache loaded successfully:"
         Rails.logger.info "  - Countries found: #{countries_found.size} (#{countries_found.to_a.sort.join(', ')})"
         Rails.logger.info "  - Users processed: #{processed_count}"
@@ -410,6 +404,144 @@ after_initialize do
         Rails.logger.error "Error: #{e.message}"
         Rails.logger.error "Backtrace: #{e.backtrace.first(5).join("\n")}"
       end
+    end
+
+    def fetch_user_location(username, api_key, api_username, discourse_url)
+      begin
+        user_url = "#{discourse_url.chomp('/')}/users/#{username}.json"
+        
+        uri = URI(user_url)
+        http = Net::HTTP.new(uri.host, uri.port)
+        http.use_ssl = true if uri.scheme == 'https'
+        
+        request = Net::HTTP::Get.new(uri)
+        request['Api-Key'] = api_key
+        request['Api-Username'] = api_username
+        
+        response = http.request(request)
+        
+        if response.code == '200'
+          user_data = JSON.parse(response.body)
+          location = user_data['user']&.dig('location') || ""
+          Rails.logger.info "  ✅ #{username}: #{location.empty? ? 'Sin ubicación' : location}"
+          return location
+        else
+          Rails.logger.warn "  ❌ #{username}: Error #{response.code}"
+          return ""
+        end
+      rescue => e
+        Rails.logger.warn "  ❌ #{username}: Exception #{e.message}"
+        return ""
+      end
+    end
+
+    def extract_country_only(location)
+      return "No country" if location.nil? || location.empty?
+      
+      # Convert to lowercase
+      normalized = location.downcase.strip
+      
+      # Country mapping (city, country -> country only)
+      country_mapping = {
+        # Greece
+        'athens, greece' => 'Greece',
+        'larissa, greece' => 'Greece',
+        'thessaloniki, greece' => 'Greece',
+        'heraklion, greece' => 'Greece',
+        
+        # Tunisia
+        'tunis, tunisia' => 'Tunisia',
+        'bizerte, tunisia' => 'Tunisia',
+        'monastir, tunisia' => 'Tunisia',
+        'sousse, tunisia' => 'Tunisia',
+        'sfax, tunisia' => 'Tunisia',
+        'kairouan, tunisia' => 'Tunisia',
+        'gabès, tunisia' => 'Tunisia',
+        
+        # France
+        'paris, france' => 'France',
+        'montreuil, france' => 'France',
+        'marseille, france' => 'France',
+        'toulouse, france' => 'France',
+        'orléans, france' => 'France',
+        
+        # Spain
+        'madrid, spain' => 'Spain',
+        'barcelona, spain' => 'Spain',
+        'zaragoza, spain' => 'Spain',
+        'sevilla, spain' => 'Spain',
+        'valencia, spain' => 'Spain',
+        
+        # Italy
+        'roma, italy' => 'Italy',
+        'firenze, italy' => 'Italy',
+        'florence, italy' => 'Italy',
+        'torino, italy' => 'Italy',
+        'palermo, italy' => 'Italy',
+        'bologna, italy' => 'Italy',
+        'catania, italy' => 'Italy',
+        
+        # Serbia
+        'belgrade, serbia' => 'Serbia',
+        'beograd, serbia' => 'Serbia',
+        'novi sad, serbia' => 'Serbia',
+        'niš, serbia' => 'Serbia',
+        
+        # Albania
+        'tirana, albania' => 'Albania',
+        'shkoder, albania' => 'Albania',
+        'shkodra, albania' => 'Albania',
+        'elbasan, albania' => 'Albania',
+        'kruje, albania' => 'Albania',
+        
+        # Morocco
+        'rabat, morocco' => 'Morocco',
+        'casablanca, morocco' => 'Morocco',
+        'tanger, morocco' => 'Morocco',
+        'tangier, morocco' => 'Morocco',
+        'agadir, morocco' => 'Morocco',
+        
+        # Luxembourg
+        'luxembourg, luxembourg' => 'Luxembourg',
+        'esch-sur-alzette, luxembourg' => 'Luxembourg',
+        
+        # Belgium
+        'brussels, belgium' => 'Belgium',
+        'brussel, belgium' => 'Belgium',
+        'bruxelles, belgium' => 'Belgium',
+        
+        # Czech Republic
+        'prague, czech republic' => 'Czech Republic',
+        'praha, czech republic' => 'Czech Republic',
+        'pardubice, czech republic' => 'Czech Republic',
+        'brno, czech republic' => 'Czech Republic',
+        
+        # Hungary
+        'budapest, hungary' => 'Hungary',
+        'veszprém, hungary' => 'Hungary',
+        'pécs, hungary' => 'Hungary',
+        
+        # Others
+        'london, united kingdom' => 'United Kingdom',
+        'new york, united states' => 'United States',
+        'buenos aires, argentina' => 'Argentina',
+        'nairobi, kenya' => 'Kenya',
+        'kampala, uganda' => 'Uganda',
+        'cairo, egypt' => 'Egypt'
+      }
+      
+      # Look for mapping
+      if country_mapping[normalized]
+        return country_mapping[normalized]
+      end
+      
+      # If no mapping, try to extract country from the last part
+      parts = normalized.split(', ')
+      if parts.length > 1
+        return parts.last.capitalize
+      end
+      
+      return "No country"
     end
 
     
