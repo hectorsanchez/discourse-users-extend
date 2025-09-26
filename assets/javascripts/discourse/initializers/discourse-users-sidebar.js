@@ -147,6 +147,7 @@ function hideDiscourseUsersInterface() {
 // Global variables for state
 let allUsers = {};
 let allCountries = [];
+let discourseUrl = null;
 
 async function loadDiscourseUsers() {
   console.log("=== SIDEBAR DEBUG - LOADING COUNTRIES ===");
@@ -163,6 +164,12 @@ async function loadDiscourseUsers() {
     if (data.success && data.countries) {
       console.log("Success response, countries found:", data.countries);
       allCountries = data.countries;
+      
+      // Store the Discourse URL from the API response
+      if (data.discourse_url) {
+        discourseUrl = data.discourse_url;
+        console.log("Discourse URL from API:", discourseUrl);
+      }
       
       populateCountryFilter();
       showCountrySelection();
@@ -228,6 +235,12 @@ async function loadUsersByCountry(country) {
     if (data.success && data.users) {
       console.log("Success response, users found:", data.users.length);
       allUsers = { [country]: data.users };
+      
+      // Store the Discourse URL from the API response if not already stored
+      if (data.discourse_url && !discourseUrl) {
+        discourseUrl = data.discourse_url;
+        console.log("Discourse URL from API (users):", discourseUrl);
+      }
       
       displayUsers(allUsers);
       enableSearch();
@@ -372,28 +385,15 @@ function displayUsers(users) {
 }
 
 function getDiscourseUrl() {
-  // Try to get the Discourse URL from plugin settings
-  try {
-    // Access the plugin setting through Discourse's Site object
-    if (window.Discourse && window.Discourse.Site && window.Discourse.Site.current) {
-      const siteSettings = window.Discourse.Site.current.siteSettings;
-      if (siteSettings && siteSettings.dmu_discourse_api_url) {
-        return siteSettings.dmu_discourse_api_url;
-      }
-    }
-    
-    // Fallback: try to get from meta tag or other sources
-    const metaTag = document.querySelector('meta[name="discourse-url"]');
-    if (metaTag) {
-      return metaTag.getAttribute('content');
-    }
-    
-    // Final fallback: use current domain
-    return window.location.origin;
-  } catch (error) {
-    console.warn('Could not get Discourse URL from settings, using current domain:', error);
-    return window.location.origin;
+  // Use the Discourse URL from the API response
+  if (discourseUrl) {
+    console.log("Using Discourse URL from API:", discourseUrl);
+    return discourseUrl;
   }
+  
+  // Fallback: use current domain
+  console.warn('Discourse URL not available from API, using current domain');
+  return window.location.origin;
 }
 
 function getInitials(firstname, lastname) {

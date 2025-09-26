@@ -43,6 +43,7 @@ after_initialize do
           countries: countries,
           total_countries: countries.length,
           cache_updated: $cache_last_updated,
+          discourse_url: SiteSetting.dmu_discourse_api_url,
           timestamp: Time.current.iso8601
         }
       else
@@ -96,6 +97,7 @@ after_initialize do
           country: country,
           total_users: users.length,
           cache_updated: $cache_last_updated,
+          discourse_url: SiteSetting.dmu_discourse_api_url,
           timestamp: Time.current.iso8601
         }
       else
