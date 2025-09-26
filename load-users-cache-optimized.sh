@@ -94,9 +94,10 @@ def extract_country_only(location)
   country_mapping = {
     # Normalizaciones específicas para evitar duplicados
     'czech republic' => 'Czech Republic',
-    'Czech republic' => 'Czech Republic',
+    'Czech republic' => 'Czech Republic',  # Capitalización mixta
     'united kingdom' => 'United Kingdom',
-    'nigeria' => 'Niger',
+    'United kingdom' => 'United Kingdom',  # Capitalización mixta
+    'nigeria' => 'Niger',  # Nigeria y Niger son el mismo país
     'niger' => 'Niger', 
     'athens, greece' => 'Greece',
     'tunis, tunisia' => 'Tunisia',

@@ -519,14 +519,14 @@ after_initialize do
         country_mapping = {
           # Czech Republic normalization
           'czech republic' => 'Czech Republic',
-          'czech republic' => 'Czech Republic',
+          'Czech republic' => 'Czech Republic',  # Capitalización mixta
           
           # United Kingdom normalization
           'united kingdom' => 'United Kingdom',
-          'united kingdom' => 'United Kingdom',
+          'United kingdom' => 'United Kingdom',  # Capitalización mixta
           
-          # Nigeria vs Niger distinction
-          'nigeria' => 'Nigeria',
+          # Nigeria y Niger son el mismo país
+          'nigeria' => 'Niger',
           'niger' => 'Niger',
           
           # Greece
