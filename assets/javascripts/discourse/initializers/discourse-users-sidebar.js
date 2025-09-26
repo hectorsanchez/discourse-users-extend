@@ -346,7 +346,9 @@ function displayUsers(users) {
                 }
               </div>
               <div style="flex: 1; min-width: 0;">
-                <div style="font-weight: 600; margin-bottom: 3px; font-size: 1.1em; color: var(--primary);">${user.firstname} ${user.lastname}</div>
+                <div style="font-weight: 600; margin-bottom: 3px; font-size: 1.1em; color: var(--primary);">
+                  <a href="https://discourse.youth-care.eu/u/${user.username}" target="_blank" style="color: var(--primary); text-decoration: none;">${user.firstname} ${user.lastname}</a>
+                </div>
                 <div style="color: var(--primary); font-size: 0.85em; font-weight: 500; margin-bottom: 3px;">
                   <a href="https://discourse.youth-care.eu/u/${user.username}" target="_blank" style="color: var(--primary); text-decoration: none;">@${user.username}</a>
                 </div>
