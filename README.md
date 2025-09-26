@@ -76,35 +76,62 @@ Una vez configurado, el plugin proporciona:
 - **Información detallada** de cada usuario
 - **Actualización en tiempo real** de estadísticas
 
-## Estructura del Plugin
+## Script de Carga Optimizada de Cache
 
+### `load-users-cache-optimized.sh`
+
+Script para cargar el cache de usuarios con una estrategia optimizada que evita rate limiting y mejora la eficiencia.
+
+#### Características
+
+- **Procesamiento por lotes**: 60 usuarios por lote con pausa de 30 segundos entre lotes
+- **Manejo de rate limiting**: Reintentos automáticos con backoff exponencial
+- **Configuración flexible**: Permite procesar todos los lotes o un número específico
+- **Mapeo de países**: Normalización automática de ubicaciones a países
+- **Persistencia**: Guarda el cache en disco para recuperación rápida
+
+#### Uso
+
+```bash
+# Procesar todos los lotes disponibles
+./load-users-cache-optimized.sh
+
+# Procesar solo 3 lotes (útil para pruebas)
+./load-users-cache-optimized.sh 3
 ```
-discourse-users-extend/
-├── plugin.rb                                    # Controlador principal
-├── config/
-│   └── settings.yml                            # Configuración del plugin
-├── assets/
-│   └── javascripts/
-│       └── discourse/
-│           ├── components/
-│           │   ├── discourse-api-settings.js   # Componente de configuración
-│           │   └── discourse-users-page.js     # Componente principal
-│           ├── controllers/
-│           │   └── admin/
-│           │       └── plugins-index.js        # Controlador de admin
-│           ├── helpers/
-│           │   └── get-initials.js             # Helper para iniciales
-│           ├── initializers/
-│           │   └── discourse-users-sidebar.js  # Inicializador del sidebar
-│           └── templates/
-│               ├── admin/
-│               │   └── plugins/
-│               │       └── discourse_api_settings.hbs
-│               ├── components/
-│               │   └── discourse-users-page.hbs
-│               └── discourse-users-page.hbs
-└── README.md
-```
+
+#### Parámetros
+
+- **Sin parámetros**: Procesa todos los lotes disponibles
+- **Número entero**: Procesa solo el número especificado de lotes
+
+#### Estrategia de Optimización
+
+1. **Lotes de 60 usuarios** con pausa de 30 segundos entre lotes
+2. **Delay de 500ms** entre peticiones individuales
+3. **Reintentos automáticos** para errores 429 (rate limit)
+4. **Mapeo inteligente** de ubicaciones a países
+5. **Eliminación de duplicados** por username
+
+#### Tiempo Estimado
+
+- **Todos los lotes**: ~11 minutos (para ~660 usuarios)
+- **3 lotes**: ~3 minutos (para ~180 usuarios)
+
+#### Configuración Requerida
+
+El script utiliza la configuración del plugin:
+- `dmu_discourse_api_key`: API Key de administración
+- `dmu_discourse_api_username`: Usuario para la API
+- `dmu_discourse_api_url`: URL del servidor Discourse
+
+#### Salida
+
+El script genera:
+- Cache en memoria (`$users_by_country_cache`)
+- Archivo de cache en disco (`tmp/discourse_users_cache.json`)
+- Estadísticas detalladas del procesamiento
+- Lista de países encontrados y conteo de usuarios
 
 ## API Endpoints
 
