@@ -515,13 +515,25 @@ after_initialize do
       # Convert to lowercase
       normalized = location.downcase.strip
       
-      # Country mapping (city, country -> country only)
-      country_mapping = {
-        # Greece
-        'athens, greece' => 'Greece',
-        'larissa, greece' => 'Greece',
-        'thessaloniki, greece' => 'Greece',
-        'heraklion, greece' => 'Greece',
+        # Country mapping (city, country -> country only)
+        country_mapping = {
+          # Czech Republic normalization
+          'czech republic' => 'Czech Republic',
+          'czech republic' => 'Czech Republic',
+          
+          # United Kingdom normalization
+          'united kingdom' => 'United Kingdom',
+          'united kingdom' => 'United Kingdom',
+          
+          # Nigeria vs Niger distinction
+          'nigeria' => 'Nigeria',
+          'niger' => 'Niger',
+          
+          # Greece
+          'athens, greece' => 'Greece',
+          'larissa, greece' => 'Greece',
+          'thessaloniki, greece' => 'Greece',
+          'heraklion, greece' => 'Greece',
         
         # Tunisia
         'tunis, tunisia' => 'Tunisia',
