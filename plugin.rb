@@ -517,18 +517,105 @@ after_initialize do
       
         # Country mapping (city, country -> country only)
         country_mapping = {
-          # Czech Republic normalization
+          # Normalizaciones específicas para evitar duplicados
           'czech republic' => 'Czech Republic',
-          
-          # United Kingdom normalization
           'united kingdom' => 'United Kingdom',
-          
-          # South Africa normalization
           'south africa' => 'South Africa',
-          
-          # Nigeria y Niger son el mismo país
-          'nigeria' => 'Niger',
+          'nigeria' => 'Niger',  # Nigeria y Niger son el mismo país
           'niger' => 'Niger',
+          
+          # Países comunes para evitar problemas futuros
+          'italy' => 'Italy',
+          'brazil' => 'Brazil',
+          'kenya' => 'Kenya',
+          'argentina' => 'Argentina',
+          'france' => 'France',
+          'spain' => 'Spain',
+          'germany' => 'Germany',
+          'portugal' => 'Portugal',
+          'belgium' => 'Belgium',
+          'netherlands' => 'Netherlands',
+          'poland' => 'Poland',
+          'romania' => 'Romania',
+          'bulgaria' => 'Bulgaria',
+          'croatia' => 'Croatia',
+          'slovenia' => 'Slovenia',
+          'slovakia' => 'Slovakia',
+          'hungary' => 'Hungary',
+          'austria' => 'Austria',
+          'switzerland' => 'Switzerland',
+          'denmark' => 'Denmark',
+          'sweden' => 'Sweden',
+          'norway' => 'Norway',
+          'finland' => 'Finland',
+          'ireland' => 'Ireland',
+          'greece' => 'Greece',
+          'tunisia' => 'Tunisia',
+          'morocco' => 'Morocco',
+          'algeria' => 'Algeria',
+          'egypt' => 'Egypt',
+          'turkey' => 'Turkey',
+          'israel' => 'Israel',
+          'jordan' => 'Jordan',
+          'lebanon' => 'Lebanon',
+          'palestine' => 'Palestine',
+          'syria' => 'Syria',
+          'iraq' => 'Iraq',
+          'iran' => 'Iran',
+          'saudi arabia' => 'Saudi Arabia',
+          'united arab emirates' => 'United Arab Emirates',
+          'india' => 'India',
+          'china' => 'China',
+          'japan' => 'Japan',
+          'south korea' => 'South Korea',
+          'thailand' => 'Thailand',
+          'vietnam' => 'Vietnam',
+          'philippines' => 'Philippines',
+          'indonesia' => 'Indonesia',
+          'malaysia' => 'Malaysia',
+          'singapore' => 'Singapore',
+          'australia' => 'Australia',
+          'new zealand' => 'New Zealand',
+          'canada' => 'Canada',
+          'united states' => 'United States',
+          'mexico' => 'Mexico',
+          'chile' => 'Chile',
+          'colombia' => 'Colombia',
+          'peru' => 'Peru',
+          'venezuela' => 'Venezuela',
+          'ecuador' => 'Ecuador',
+          'bolivia' => 'Bolivia',
+          'paraguay' => 'Paraguay',
+          'uruguay' => 'Uruguay',
+          'uganda' => 'Uganda',
+          'tanzania' => 'Tanzania',
+          'democratic republic of congo' => 'Democratic Republic of Congo',
+          'senegal' => 'Senegal',
+          'mali' => 'Mali',
+          'burkina faso' => 'Burkina Faso',
+          'chad' => 'Chad',
+          'cameroon' => 'Cameroon',
+          'central african republic' => 'Central African Republic',
+          'sudan' => 'Sudan',
+          'south sudan' => 'South Sudan',
+          'eritrea' => 'Eritrea',
+          'djibouti' => 'Djibouti',
+          'somalia' => 'Somalia',
+          'rwanda' => 'Rwanda',
+          'burundi' => 'Burundi',
+          'madagascar' => 'Madagascar',
+          'mauritius' => 'Mauritius',
+          'seychelles' => 'Seychelles',
+          'comoros' => 'Comoros',
+          'malawi' => 'Malawi',
+          'zambia' => 'Zambia',
+          'zimbabwe' => 'Zimbabwe',
+          'botswana' => 'Botswana',
+          'namibia' => 'Namibia',
+          'angola' => 'Angola',
+          'mozambique' => 'Mozambique',
+          'lesotho' => 'Lesotho',
+          'swaziland' => 'Swaziland',
           
           # Greece
           'athens, greece' => 'Greece',
@@ -625,16 +712,19 @@ after_initialize do
       # If no mapping, try to extract country from the last part
       parts = normalized.split(', ')
       if parts.length > 1
+        # Caso: "ciudad, país" -> tomar el país
         country = parts.last
-        # Capitalizar correctamente países compuestos
-        if country.include?(' ')
-          return country.split(' ').map(&:capitalize).join(' ')
-        else
-          return country.capitalize
-        end
+      else
+        # Caso: "país" -> tomar el país completo
+        country = parts.first
       end
       
-      return "No country"
+      # Capitalizar correctamente países compuestos
+      if country.include?(' ')
+        return country.split(' ').map(&:capitalize).join(' ')
+      else
+        return country.capitalize
+      end
     end
 
     

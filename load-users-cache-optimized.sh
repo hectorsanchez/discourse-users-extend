@@ -98,7 +98,102 @@ def extract_country_only(location)
     'united kingdom' => 'United Kingdom',
     'south africa' => 'South Africa',
     'nigeria' => 'Niger',  # Nigeria y Niger son el mismo país
-    'niger' => 'Niger', 
+    'niger' => 'Niger',
+    
+    # Países comunes para evitar problemas futuros
+    'italy' => 'Italy',
+    'brazil' => 'Brazil',
+    'kenya' => 'Kenya',
+    'argentina' => 'Argentina',
+    'france' => 'France',
+    'spain' => 'Spain',
+    'germany' => 'Germany',
+    'portugal' => 'Portugal',
+    'belgium' => 'Belgium',
+    'netherlands' => 'Netherlands',
+    'poland' => 'Poland',
+    'romania' => 'Romania',
+    'bulgaria' => 'Bulgaria',
+    'croatia' => 'Croatia',
+    'slovenia' => 'Slovenia',
+    'slovakia' => 'Slovakia',
+    'hungary' => 'Hungary',
+    'austria' => 'Austria',
+    'switzerland' => 'Switzerland',
+    'denmark' => 'Denmark',
+    'sweden' => 'Sweden',
+    'norway' => 'Norway',
+    'finland' => 'Finland',
+    'ireland' => 'Ireland',
+    'greece' => 'Greece',
+    'tunisia' => 'Tunisia',
+    'morocco' => 'Morocco',
+    'algeria' => 'Algeria',
+    'egypt' => 'Egypt',
+    'turkey' => 'Turkey',
+    'israel' => 'Israel',
+    'jordan' => 'Jordan',
+    'lebanon' => 'Lebanon',
+    'palestine' => 'Palestine',
+    'syria' => 'Syria',
+    'iraq' => 'Iraq',
+    'iran' => 'Iran',
+    'saudi arabia' => 'Saudi Arabia',
+    'united arab emirates' => 'United Arab Emirates',
+    'india' => 'India',
+    'china' => 'China',
+    'japan' => 'Japan',
+    'south korea' => 'South Korea',
+    'thailand' => 'Thailand',
+    'vietnam' => 'Vietnam',
+    'philippines' => 'Philippines',
+    'indonesia' => 'Indonesia',
+    'malaysia' => 'Malaysia',
+    'singapore' => 'Singapore',
+    'australia' => 'Australia',
+    'new zealand' => 'New Zealand',
+    'canada' => 'Canada',
+    'united states' => 'United States',
+    'mexico' => 'Mexico',
+    'chile' => 'Chile',
+    'colombia' => 'Colombia',
+    'peru' => 'Peru',
+    'venezuela' => 'Venezuela',
+    'ecuador' => 'Ecuador',
+    'bolivia' => 'Bolivia',
+    'paraguay' => 'Paraguay',
+    'uruguay' => 'Uruguay',
+    'uganda' => 'Uganda',
+    'tanzania' => 'Tanzania',
+    'democratic republic of congo' => 'Democratic Republic of Congo',
+    'senegal' => 'Senegal',
+    'mali' => 'Mali',
+    'burkina faso' => 'Burkina Faso',
+    'chad' => 'Chad',
+    'cameroon' => 'Cameroon',
+    'central african republic' => 'Central African Republic',
+    'sudan' => 'Sudan',
+    'south sudan' => 'South Sudan',
+    'eritrea' => 'Eritrea',
+    'djibouti' => 'Djibouti',
+    'somalia' => 'Somalia',
+    'rwanda' => 'Rwanda',
+    'burundi' => 'Burundi',
+    'madagascar' => 'Madagascar',
+    'mauritius' => 'Mauritius',
+    'seychelles' => 'Seychelles',
+    'comoros' => 'Comoros',
+    'malawi' => 'Malawi',
+    'zambia' => 'Zambia',
+    'zimbabwe' => 'Zimbabwe',
+    'botswana' => 'Botswana',
+    'namibia' => 'Namibia',
+    'angola' => 'Angola',
+    'mozambique' => 'Mozambique',
+    'lesotho' => 'Lesotho',
+    'swaziland' => 'Swaziland',
+    
+    # Ciudades específicas (mantener para casos especiales)
     'athens, greece' => 'Greece',
     'tunis, tunisia' => 'Tunisia',
     'paris, france' => 'France',
@@ -124,16 +219,19 @@ def extract_country_only(location)
   
   parts = normalized.split(', ')
   if parts.length > 1
+    # Caso: "ciudad, país" -> tomar el país
     country = parts.last
-    # Capitalizar correctamente países compuestos
-    if country.include?(' ')
-      return country.split(' ').map(&:capitalize).join(' ')
-    else
-      return country.capitalize
-    end
+  else
+    # Caso: "país" -> tomar el país completo
+    country = parts.first
   end
   
-  return 'No country'
+  # Capitalizar correctamente países compuestos
+  if country.include?(' ')
+    return country.split(' ').map(&:capitalize).join(' ')
+  else
+    return country.capitalize
+  end
 end
 
 # Obtener configuración
