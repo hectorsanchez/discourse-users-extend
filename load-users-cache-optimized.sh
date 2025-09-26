@@ -219,14 +219,14 @@ def extract_country_only(location)
   
   parts = normalized.split(', ')
   if parts.length > 1
-    # Caso: "ciudad, país" -> tomar el país
+    # Caso: ciudad, pais -> tomar el pais
     country = parts.last
   else
-    # Caso: "país" -> tomar el país completo
+    # Caso: pais -> tomar el pais completo
     country = parts.first
   end
   
-  # Capitalizar correctamente países compuestos
+  # Capitalizar correctamente paises compuestos
   if country.include?(' ')
     return country.split(' ').map(&:capitalize).join(' ')
   else
