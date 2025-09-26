@@ -512,18 +512,19 @@ after_initialize do
     def extract_country_only(location)
       return "No country" if location.nil? || location.empty?
       
-      # Convert to lowercase
-      normalized = location.downcase.strip
+      # Normalizar espacios alrededor de comas y convertir a minúsculas
+      normalized = location.downcase.strip.gsub(/\s*,\s*/, ', ')
       
         # Country mapping (city, country -> country only)
         country_mapping = {
           # Czech Republic normalization
           'czech republic' => 'Czech Republic',
-          'Czech republic' => 'Czech Republic',  # Capitalización mixta
           
           # United Kingdom normalization
           'united kingdom' => 'United Kingdom',
-          'United kingdom' => 'United Kingdom',  # Capitalización mixta
+          
+          # South Africa normalization
+          'south africa' => 'South Africa',
           
           # Nigeria y Niger son el mismo país
           'nigeria' => 'Niger',
@@ -624,7 +625,13 @@ after_initialize do
       # If no mapping, try to extract country from the last part
       parts = normalized.split(', ')
       if parts.length > 1
-        return parts.last.capitalize
+        country = parts.last
+        # Capitalizar correctamente países compuestos
+        if country.include?(' ')
+          return country.split(' ').map(&:capitalize).join(' ')
+        else
+          return country.capitalize
+        end
       end
       
       return "No country"
