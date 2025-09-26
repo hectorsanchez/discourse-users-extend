@@ -311,6 +311,9 @@ function displayUsers(users) {
     return;
   }
   
+  // Get Discourse URL from plugin settings
+  const discourseUrl = getDiscourseUrl();
+  
   let html = '';
   
   Object.keys(users).forEach(country => {
@@ -347,10 +350,10 @@ function displayUsers(users) {
               </div>
               <div style="flex: 1; min-width: 0;">
                 <div style="font-weight: 600; margin-bottom: 3px; font-size: 1.1em; color: var(--primary);">
-                  <a href="https://discourse.youth-care.eu/u/${user.username}" target="_blank" style="color: var(--primary); text-decoration: none;">${user.firstname} ${user.lastname}</a>
+                  <a href="${discourseUrl}/u/${user.username}" target="_blank" style="color: var(--primary); text-decoration: none;">${user.firstname} ${user.lastname}</a>
                 </div>
                 <div style="color: var(--primary); font-size: 0.85em; font-weight: 500; margin-bottom: 3px;">
-                  <a href="https://discourse.youth-care.eu/u/${user.username}" target="_blank" style="color: var(--primary); text-decoration: none;">@${user.username}</a>
+                  <a href="${discourseUrl}/u/${user.username}" target="_blank" style="color: var(--primary); text-decoration: none;">@${user.username}</a>
                 </div>
                 <div style="color: var(--primary-medium); font-size: 0.85em; font-weight: 500; margin-bottom: 3px;">Location: ${user.location || user.country}</div>
                 <div style="color: var(--primary-low); font-size: 0.8em;">Level: ${user.trust_level}</div>
@@ -366,6 +369,31 @@ function displayUsers(users) {
   
   // Initialize lazy loading for avatars
   initializeAvatarLoading();
+}
+
+function getDiscourseUrl() {
+  // Try to get the Discourse URL from plugin settings
+  try {
+    // Access the plugin setting through Discourse's Site object
+    if (window.Discourse && window.Discourse.Site && window.Discourse.Site.current) {
+      const siteSettings = window.Discourse.Site.current.siteSettings;
+      if (siteSettings && siteSettings.dmu_discourse_api_url) {
+        return siteSettings.dmu_discourse_api_url;
+      }
+    }
+    
+    // Fallback: try to get from meta tag or other sources
+    const metaTag = document.querySelector('meta[name="discourse-url"]');
+    if (metaTag) {
+      return metaTag.getAttribute('content');
+    }
+    
+    // Final fallback: use current domain
+    return window.location.origin;
+  } catch (error) {
+    console.warn('Could not get Discourse URL from settings, using current domain:', error);
+    return window.location.origin;
+  }
 }
 
 function getInitials(firstname, lastname) {
