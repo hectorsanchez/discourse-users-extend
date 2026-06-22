@@ -3,7 +3,7 @@ import { withPluginApi } from "discourse/lib/plugin-api";
 export default {
   name: "discourse-users-sidebar",
   initialize() {
-    withPluginApi("0.8.31", api => {
+    withPluginApi((api) => {
       // Add link to sidebar
       //api.addCommunitySectionLink({
       //  name: "discourse-users",

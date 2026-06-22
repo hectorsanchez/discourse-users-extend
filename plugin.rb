@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # name: discourse-users-extend
 # about: Plugin to display Discourse users and group them by country.
 # version: 0.1

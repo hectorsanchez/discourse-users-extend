@@ -1,11 +1,6 @@
 # config/settings.yml
 
 plugin:
-  dmu_enabled:
-    default: true
-    type: "bool"
-    description: "Enable the Discourse users plugin"
-
   dmu_discourse_api_key:
     default: ""
     type: "string"
